@@ -115,9 +115,6 @@ service NetworkServer {
     // GetGatewayStats returns stats of an existing gateway.
     rpc GetGatewayStats(GetGatewayStatsRequest) returns (GetGatewayStatsResponse) {}
 
-    // MigrateNodeToDeviceSession. This method is for internal us only.
-    rpc MigrateNodeToDeviceSession(MigrateNodeToDeviceSessionRequest) returns (MigrateNodeToDeviceSessionResponse) {}
-
     // StreamFrameLogsForGateway returns a stream of frames seen by the given gateway.
     rpc StreamFrameLogsForGateway(StreamFrameLogsForGatewayRequest) returns (stream StreamFrameLogsForGatewayResponse) {}
 
@@ -126,6 +123,12 @@ service NetworkServer {
 
     // GetVersion returns the LoRa Server version.
     rpc GetVersion(GetVersionRequest) returns (GetVersionResponse) {}
+
+    // MigrateNodeToDeviceSession. This method is for internal us only.
+    rpc MigrateNodeToDeviceSession(MigrateNodeToDeviceSessionRequest) returns (MigrateNodeToDeviceSessionResponse) {}
+
+    // MigrateChannelConfigurationToGatewayProfile. This method is for internal use only.
+    rpc MigrateChannelConfigurationToGatewayProfile(MigrateChannelConfigurationToGatewayProfileRequest) returns (MigrateChannelConfigurationToGatewayProfileResponse) {}
 }
 
 enum RXWindow {
@@ -585,16 +588,6 @@ message GetGatewayStatsResponse {
     repeated GatewayStats result = 1;
 }
 
-message MigrateNodeToDeviceSessionRequest {
-    bytes devEUI = 1;
-
-    bytes joinEUI = 2;
-
-    repeated bytes devNonces = 3;
-}
-
-message MigrateNodeToDeviceSessionResponse {}
-
 message DeviceQueueItem {
     // DevEUI of the device.
     bytes devEUI = 1;
@@ -827,7 +820,7 @@ message CreateGatewayProfileResponse {
 
 message GetGatewayProfileRequest {
     // ID of the gateway-profile.
-    string id = 1;
+    string gatewayProfileID = 1;
 }
 
 message GetGatewayProfileResponse {
@@ -848,3 +841,27 @@ message DeleteGatewayProfileRequest {
 }
 
 message DeleteGatewayProfileResponse {}
+
+message MigrateNodeToDeviceSessionRequest {
+    bytes devEUI = 1;
+
+    bytes joinEUI = 2;
+
+    repeated bytes devNonces = 3;
+}
+
+message MigrateNodeToDeviceSessionResponse {}
+
+message MigrateChannelConfigurationToGatewayProfileRequest {}
+
+message MigrateChannelConfigurationToGatewayProfileResponse {
+    repeated GatewayProfileMigration profiles = 1;
+}
+
+message GatewayProfileMigration {
+    // ID of the gateway-profile.
+    string id = 1;
+
+    // Name of the gateway-profile.
+    string name = 2;
+}

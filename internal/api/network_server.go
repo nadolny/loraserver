@@ -921,7 +921,7 @@ func (n *NetworkServerAPI) StreamFrameLogsForDevice(req *ns.StreamFrameLogsForDe
 // CreateGatewayProfile creates the given gateway-profile.
 func (n *NetworkServerAPI) CreateGatewayProfile(ctx context.Context, req *ns.CreateGatewayProfileRequest) (*ns.CreateGatewayProfileResponse, error) {
 	gc := storage.GatewayProfile{
-		ID: req.GatewayProfile.Id,
+		GatewayProfileID: req.GatewayProfile.GatewayProfileID,
 	}
 
 	for _, c := range req.GatewayProfile.Channels {
@@ -956,12 +956,12 @@ func (n *NetworkServerAPI) CreateGatewayProfile(ctx context.Context, req *ns.Cre
 		return nil, errToRPCError(err)
 	}
 
-	return &ns.CreateGatewayProfileResponse{Id: gc.ID}, nil
+	return &ns.CreateGatewayProfileResponse{GatewayProfileID: gc.GatewayProfileID}, nil
 }
 
 // GetGatewayProfile returns the gateway-profile given an id.
 func (n *NetworkServerAPI) GetGatewayProfile(ctx context.Context, req *ns.GetGatewayProfileRequest) (*ns.GetGatewayProfileResponse, error) {
-	gc, err := storage.GetGatewayProfile(config.C.PostgreSQL.DB, req.Id)
+	gc, err := storage.GetGatewayProfile(config.C.PostgreSQL.DB, req.GatewayProfileID)
 	if err != nil {
 		return nil, errToRPCError(err)
 	}
@@ -970,7 +970,7 @@ func (n *NetworkServerAPI) GetGatewayProfile(ctx context.Context, req *ns.GetGat
 		CreatedAt: gc.CreatedAt.Format(time.RFC3339Nano),
 		UpdatedAt: gc.UpdatedAt.Format(time.RFC3339Nano),
 		GatewayProfile: &ns.GatewayProfile{
-			Id: gc.ID,
+			GatewayProfileID: gc.GatewayProfileID,
 		},
 	}
 
@@ -1004,7 +1004,7 @@ func (n *NetworkServerAPI) GetGatewayProfile(ctx context.Context, req *ns.GetGat
 
 // UpdateGatewayProfile updates the given gateway-profile.
 func (n *NetworkServerAPI) UpdateGatewayProfile(ctx context.Context, req *ns.UpdateGatewayProfileRequest) (*ns.UpdateGatewayProfileResponse, error) {
-	gc, err := storage.GetGatewayProfile(config.C.PostgreSQL.DB, req.GatewayProfile.Id)
+	gc, err := storage.GetGatewayProfile(config.C.PostgreSQL.DB, req.GatewayProfile.GatewayProfileID)
 	if err != nil {
 		return nil, errToRPCError(err)
 	}
@@ -1048,40 +1048,11 @@ func (n *NetworkServerAPI) UpdateGatewayProfile(ctx context.Context, req *ns.Upd
 
 // DeleteGatewayProfile deletes the gateway-profile matching a given id.
 func (n *NetworkServerAPI) DeleteGatewayProfile(ctx context.Context, req *ns.DeleteGatewayProfileRequest) (*ns.DeleteGatewayProfileResponse, error) {
-	if err := storage.DeleteGatewayProfile(config.C.PostgreSQL.DB, req.Id); err != nil {
+	if err := storage.DeleteGatewayProfile(config.C.PostgreSQL.DB, req.GatewayProfileID); err != nil {
 		return nil, errToRPCError(err)
 	}
 
 	return &ns.DeleteGatewayProfileResponse{}, nil
-}
-
-// MigrateNodeToDeviceSession migrates a node-session to device-session.
-// This method is for internal us only.
-func (n *NetworkServerAPI) MigrateNodeToDeviceSession(ctx context.Context, req *ns.MigrateNodeToDeviceSessionRequest) (*ns.MigrateNodeToDeviceSessionResponse, error) {
-	var devEUI lorawan.EUI64
-	var joinEUI lorawan.EUI64
-	var nonces []lorawan.DevNonce
-
-	copy(devEUI[:], req.DevEUI)
-	copy(joinEUI[:], req.JoinEUI)
-
-	for _, nBytes := range req.DevNonces {
-		var n lorawan.DevNonce
-		copy(n[:], nBytes)
-		nonces = append(nonces, n)
-	}
-	err := storage.Transaction(config.C.PostgreSQL.DB, func(tx sqlx.Ext) error {
-		if err := storage.MigrateNodeToDeviceSession(config.C.Redis.Pool, config.C.PostgreSQL.DB, devEUI, joinEUI, nonces); err != nil {
-			return errToRPCError(err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &ns.MigrateNodeToDeviceSessionResponse{}, nil
 }
 
 // CreateDeviceQueueItem creates the given device-queue item.
@@ -1243,6 +1214,62 @@ func (n *NetworkServerAPI) GetVersion(ctx context.Context, req *ns.GetVersionReq
 		Region:  region,
 		Version: config.Version,
 	}, nil
+}
+
+// MigrateNodeToDeviceSession migrates a node-session to device-session.
+// This method is for internal us only.
+func (n *NetworkServerAPI) MigrateNodeToDeviceSession(ctx context.Context, req *ns.MigrateNodeToDeviceSessionRequest) (*ns.MigrateNodeToDeviceSessionResponse, error) {
+	var devEUI lorawan.EUI64
+	var joinEUI lorawan.EUI64
+	var nonces []lorawan.DevNonce
+
+	copy(devEUI[:], req.DevEUI)
+	copy(joinEUI[:], req.JoinEUI)
+
+	for _, nBytes := range req.DevNonces {
+		var n lorawan.DevNonce
+		copy(n[:], nBytes)
+		nonces = append(nonces, n)
+	}
+	err := storage.Transaction(config.C.PostgreSQL.DB, func(tx sqlx.Ext) error {
+		if err := storage.MigrateNodeToDeviceSession(config.C.Redis.Pool, config.C.PostgreSQL.DB, devEUI, joinEUI, nonces); err != nil {
+			return errToRPCError(err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &ns.MigrateNodeToDeviceSessionResponse{}, nil
+}
+
+// MigrateChannelConfigurationToGatewayProfile migrates the channel configuration.
+// This method is for internal use only.
+func (n *NetworkServerAPI) MigrateChannelConfigurationToGatewayProfile(ctx context.Context, req *ns.MigrateChannelConfigurationToGatewayProfileRequest) (*ns.MigrateChannelConfigurationToGatewayProfileResponse, error) {
+	var out ns.MigrateChannelConfigurationToGatewayProfileResponse
+
+	err := storage.Transaction(config.C.PostgreSQL.DB, func(tx sqlx.Ext) error {
+		profiles, err := storage.MigrateChannelConfigurationToGatewayProfile(tx)
+		if err != nil {
+			return err
+		}
+
+		for k, v := range profiles {
+			out.Profiles = append(out.Profiles, &ns.GatewayProfileMigration{
+				Id:   k,
+				Name: v,
+			})
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, errToRPCError(err)
+	}
+
+	return &out, nil
 }
 
 func gwToResp(gw gateway.Gateway) *ns.GetGatewayResponse {

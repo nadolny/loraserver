@@ -70,8 +70,6 @@ It has these top-level messages:
 	GatewayStats
 	GetGatewayStatsRequest
 	GetGatewayStatsResponse
-	MigrateNodeToDeviceSessionRequest
-	MigrateNodeToDeviceSessionResponse
 	DeviceQueueItem
 	CreateDeviceQueueItemRequest
 	CreateDeviceQueueItemResponse
@@ -103,6 +101,11 @@ It has these top-level messages:
 	UpdateGatewayProfileResponse
 	DeleteGatewayProfileRequest
 	DeleteGatewayProfileResponse
+	MigrateNodeToDeviceSessionRequest
+	MigrateNodeToDeviceSessionResponse
+	MigrateChannelConfigurationToGatewayProfileRequest
+	MigrateChannelConfigurationToGatewayProfileResponse
+	GatewayProfileMigration
 */
 package ns
 

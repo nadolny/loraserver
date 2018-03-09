@@ -3,8 +3,10 @@ package storage
 import (
 	"time"
 
+	"github.com/brocaar/loraserver/internal/gateway"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 )
@@ -246,4 +248,69 @@ func DeleteGatewayProfile(db sqlx.Execer, id string) error {
 	}).Info("gateway-profile deleted")
 
 	return nil
+}
+
+// MigrateChannelConfigurationToGatewayProfile migrates the channel configuration.
+func MigrateChannelConfigurationToGatewayProfile(db sqlx.Ext) (map[string]string, error) {
+	var out map[string]string
+	var configMigrate []struct {
+		ID   int64  `db:"id"`
+		Name string `db:"name"`
+	}
+
+	err := sqlx.Select(db, &configMigrate, `
+		select
+			id,
+			name
+		from channel_configuration`)
+	if err != nil {
+		return nil, handlePSQLError(err, "select error")
+	}
+
+	for _, cm := range configMigrate {
+		cc, err := gateway.GetChannelConfiguration(db, cm.ID)
+		if err != nil {
+			return nil, errors.Wrap(err, "get channel configuration error")
+		}
+
+		ec, err := gateway.GetExtraChannelsForChannelConfigurationID(db, cm.ID)
+		if err != nil {
+			return nil, errors.Wrap(err, "get extra channels for channel configuration error")
+		}
+
+		gp := GatewayProfile{
+			Channels: cc.Channels,
+		}
+
+		for i := range ec {
+			gp.ExtraChannels = append(gp.ExtraChannels, ExtraChannel{
+				Modulation:       ec[i].Modulation,
+				Frequency:        ec[i].Frequency,
+				Bandwidth:        ec[i].BandWidth,
+				Bitrate:          ec[i].BitRate,
+				SpreadingFactors: ec[i].SpreadFactors,
+			})
+		}
+
+		if err := CreateGatewayProfile(db, &gp); err != nil {
+			return nil, errors.Wrap(err, "create gateway-profile error")
+		}
+
+		_, err = db.Exec(`
+			update gateway
+			set
+				gateway_profile_id = $2
+			where
+				channel_configuration_id = $1`,
+			cm.ID,
+			gp.GatewayProfileID,
+		)
+		if err != nil {
+			return nil, handlePSQLError(err, "update error")
+		}
+
+		out[gp.GatewayProfileID] = cm.Name
+	}
+
+	return out, nil
 }

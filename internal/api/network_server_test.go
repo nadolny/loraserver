@@ -991,13 +991,13 @@ func TestNetworkServerAPI(t *testing.T) {
 				}
 				createResp, err := api.CreateGatewayProfile(ctx, &req)
 				So(err, ShouldBeNil)
-				So(createResp.Id, ShouldNotEqual, "")
+				So(createResp.GatewayProfileID, ShouldNotEqual, "")
 
 				Convey("Then it can be retrieved", func() {
-					req.GatewayProfile.Id = createResp.Id
+					req.GatewayProfile.GatewayProfileID = createResp.GatewayProfileID
 
 					getResp, err := api.GetGatewayProfile(ctx, &ns.GetGatewayProfileRequest{
-						Id: createResp.Id,
+						GatewayProfileID: createResp.GatewayProfileID,
 					})
 					So(err, ShouldBeNil)
 					So(getResp.CreatedAt, ShouldNotEqual, "")
@@ -1008,8 +1008,8 @@ func TestNetworkServerAPI(t *testing.T) {
 				Convey("Then it can be updated", func() {
 					updateReq := ns.UpdateGatewayProfileRequest{
 						GatewayProfile: &ns.GatewayProfile{
-							Id:       createResp.Id,
-							Channels: []int32{0, 1},
+							GatewayProfileID: createResp.GatewayProfileID,
+							Channels:         []int32{0, 1},
 							ExtraChannels: []*ns.GatewayProfileExtraChannel{
 								{
 									Modulation: ns.Modulation_FSK,
@@ -1030,7 +1030,7 @@ func TestNetworkServerAPI(t *testing.T) {
 					So(err, ShouldBeNil)
 
 					resp, err := api.GetGatewayProfile(ctx, &ns.GetGatewayProfileRequest{
-						Id: createResp.Id,
+						GatewayProfileID: createResp.GatewayProfileID,
 					})
 					So(err, ShouldBeNil)
 					So(resp.GatewayProfile, ShouldResemble, updateReq.GatewayProfile)
@@ -1038,12 +1038,12 @@ func TestNetworkServerAPI(t *testing.T) {
 
 				Convey("Then it can be deleted", func() {
 					_, err := api.DeleteGatewayProfile(ctx, &ns.DeleteGatewayProfileRequest{
-						Id: createResp.Id,
+						GatewayProfileID: createResp.GatewayProfileID,
 					})
 					So(err, ShouldBeNil)
 
 					_, err = api.DeleteGatewayProfile(ctx, &ns.DeleteGatewayProfileRequest{
-						Id: createResp.Id,
+						GatewayProfileID: createResp.GatewayProfileID,
 					})
 					So(err, ShouldNotBeNil)
 					So(grpc.Code(err), ShouldEqual, codes.NotFound)

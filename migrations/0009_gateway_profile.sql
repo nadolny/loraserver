@@ -21,7 +21,16 @@ create table gateway_profile_extra_channel (
 
 create index idx_gateway_profile_extra_channel_gw_profile_id on gateway_profile_extra_channel(gateway_profile_id);
 
+alter table gateway
+    add column gateway_profile_id uuid;
+
+create index idx_gateway_gateway_profile_id on gateway(gateway_profile_id);
+
 -- +migrate Down
+drop index idx_gateway_gateway_profile_id;
+alter table gateway
+    drop column gateway_profile_id;
+
 drop index idx_gateway_profile_extra_channel_gw_profile_id;
 drop table gateway_profile_extra_channel;
 
