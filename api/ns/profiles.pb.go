@@ -66,31 +66,10 @@ It has these top-level messages:
 	ListGatewayRequest
 	ListGatewayResponse
 	DeleteGatewayRequest
-	GenerateGatewayTokenRequest
-	GenerateGatewayTokenResponse
 	DeleteGatewayResponse
 	GatewayStats
 	GetGatewayStatsRequest
 	GetGatewayStatsResponse
-	CreateChannelConfigurationRequest
-	CreateChannelConfigurationResponse
-	GetChannelConfigurationRequest
-	GetChannelConfigurationResponse
-	UpdateChannelConfigurationRequest
-	UpdateChannelConfigurationResponse
-	DeleteChannelConfigurationRequest
-	DeleteChannelConfigurationResponse
-	ListChannelConfigurationsRequest
-	ListChannelConfigurationsResponse
-	CreateExtraChannelRequest
-	CreateExtraChannelResponse
-	UpdateExtraChannelRequest
-	UpdateExtraChannelResponse
-	DeleteExtraChannelRequest
-	DeleteExtraChannelResponse
-	GetExtraChannelResponse
-	GetExtraChannelsForChannelConfigurationIDRequest
-	GetExtraChannelsForChannelConfigurationIDResponse
 	MigrateNodeToDeviceSessionRequest
 	MigrateNodeToDeviceSessionResponse
 	DeviceQueueItem
@@ -114,6 +93,16 @@ It has these top-level messages:
 	DownlinkFrameLog
 	GetVersionRequest
 	GetVersionResponse
+	GatewayConfiguration
+	GatewayConfigurationExtraChannel
+	CreateGatewayConfigurationRequest
+	CreateGatewayConfigurationResponse
+	GetGatewayConfigurationRequest
+	GetGatewayConfigurationResponse
+	UpdateGatewayConfigurationRequest
+	UpdateGatewayConfigurationResponse
+	DeleteGatewayConfigurationRequest
+	DeleteGatewayConfigurationResponse
 */
 package ns
 
