@@ -9,7 +9,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestGatewayConfiguration(t *testing.T) {
+func TestGatewayProfile(t *testing.T) {
 	conf := test.GetConfig()
 	db, err := common.OpenDatabase(conf.PostgresDSN)
 	if err != nil {
@@ -19,8 +19,8 @@ func TestGatewayConfiguration(t *testing.T) {
 	Convey("Given a clean database", t, func() {
 		test.MustResetDB(db)
 
-		Convey("When creating gateway configuration", func() {
-			gc := GatewayConfiguration{
+		Convey("When creating gateway profile", func() {
+			gc := GatewayProfile{
 				Channels: []int64{0, 1, 2},
 				ExtraChannels: []ExtraChannel{
 					{
@@ -37,12 +37,12 @@ func TestGatewayConfiguration(t *testing.T) {
 					},
 				},
 			}
-			So(CreateGatewayConfiguration(db, &gc), ShouldBeNil)
+			So(CreateGatewayProfile(db, &gc), ShouldBeNil)
 			gc.CreatedAt = gc.CreatedAt.UTC().Truncate(time.Millisecond)
 			gc.UpdatedAt = gc.UpdatedAt.UTC().Truncate(time.Millisecond)
 
 			Convey("Then it can be retrieved", func() {
-				gc2, err := GetGatewayConfiguration(db, gc.ID)
+				gc2, err := GetGatewayProfile(db, gc.GatewayProfileID)
 				So(err, ShouldBeNil)
 
 				gc2.CreatedAt = gc2.CreatedAt.UTC().Truncate(time.Millisecond)
@@ -51,8 +51,8 @@ func TestGatewayConfiguration(t *testing.T) {
 			})
 
 			Convey("Then it can be deleted", func() {
-				So(DeleteGatewayConfiguration(db, gc.ID), ShouldBeNil)
-				_, err := GetGatewayConfiguration(db, gc.ID)
+				So(DeleteGatewayProfile(db, gc.GatewayProfileID), ShouldBeNil)
+				_, err := GetGatewayProfile(db, gc.GatewayProfileID)
 				So(err, ShouldEqual, ErrDoesNotExist)
 			})
 
@@ -72,10 +72,10 @@ func TestGatewayConfiguration(t *testing.T) {
 						SpreadingFactors: []int64{10, 11, 12},
 					},
 				}
-				So(UpdateGatewayConfiguration(db, &gc), ShouldBeNil)
+				So(UpdateGatewayProfile(db, &gc), ShouldBeNil)
 				gc.UpdatedAt = gc.UpdatedAt.UTC().Truncate(time.Millisecond)
 
-				gc2, err := GetGatewayConfiguration(db, gc.ID)
+				gc2, err := GetGatewayProfile(db, gc.GatewayProfileID)
 				So(err, ShouldBeNil)
 				gc2.CreatedAt = gc2.CreatedAt.UTC().Truncate(time.Millisecond)
 				gc2.UpdatedAt = gc2.UpdatedAt.UTC().Truncate(time.Millisecond)

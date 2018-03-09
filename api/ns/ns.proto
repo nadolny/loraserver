@@ -100,17 +100,17 @@ service NetworkServer {
     // DeleteGateway deletes a gateway.
     rpc DeleteGateway(DeleteGatewayRequest) returns (DeleteGatewayResponse) {}
 
-    // CreateGatewayConfiguration creates the given gateway configuration.
-    rpc CreateGatewayConfiguration(CreateGatewayConfigurationRequest) returns (CreateGatewayConfigurationResponse) {}
+    // CreateGatewayProfile creates the given gateway-profile.
+    rpc CreateGatewayProfile(CreateGatewayProfileRequest) returns (CreateGatewayProfileResponse) {}
 
-    // GetGatewayConfiguration returns the gateway configuration given an id.
-    rpc GetGatewayConfiguration(GetGatewayConfigurationRequest) returns (GetGatewayConfigurationResponse) {}
+    // GetGatewayProfile returns the gateway-profile given an id.
+    rpc GetGatewayProfile(GetGatewayProfileRequest) returns (GetGatewayProfileResponse) {}
 
-    // UpdateGatewayConfiguration updates the given gateway configuration.
-    rpc UpdateGatewayConfiguration(UpdateGatewayConfigurationRequest) returns (UpdateGatewayConfigurationResponse) {}
+    // UpdateGatewayProfile updates the given gateway-profile.
+    rpc UpdateGatewayProfile(UpdateGatewayProfileRequest) returns (UpdateGatewayProfileResponse) {}
 
-    // DeleteGatewayConfiguration deletes the gateway configuration matching a given id.
-    rpc DeleteGatewayConfiguration(DeleteGatewayConfigurationRequest) returns (DeleteGatewayConfigurationResponse) {}
+    // DeleteGatewayProfile deletes the gateway-profile matching a given id.
+    rpc DeleteGatewayProfile(DeleteGatewayProfileRequest) returns (DeleteGatewayProfileResponse) {}
 
     // GetGatewayStats returns stats of an existing gateway.
     rpc GetGatewayStats(GetGatewayStatsRequest) returns (GetGatewayStatsResponse) {}
@@ -786,9 +786,9 @@ message GetVersionResponse {
     // Region configured for this network-server.
     Region region = 2;
 }
-message GatewayConfiguration {
-    // ID of the gateway configuration.
-    string id = 1;
+message GatewayProfile {
+    // ID of the gateway-profile.
+    string gatewayProfileID = 1;
 
     // Default channels (channels specified by the LoRaWAN Regional Parameters
     // specification) enabled for this configuration.
@@ -796,10 +796,10 @@ message GatewayConfiguration {
 
     // Extra channels added to the channel-configuration (in case the LoRaWAN
     // region supports adding custom channels).
-    repeated GatewayConfigurationExtraChannel extraChannels = 3;
+    repeated GatewayProfileExtraChannel extraChannels = 3;
 }
 
-message GatewayConfigurationExtraChannel {
+message GatewayProfileExtraChannel {
     // Modulation.
     Modulation modulation = 1;
 
@@ -816,35 +816,35 @@ message GatewayConfigurationExtraChannel {
     repeated int32 spreadingFactors = 5;
 }
 
-message CreateGatewayConfigurationRequest {
-    GatewayConfiguration gatewayConfiguration = 1;
+message CreateGatewayProfileRequest {
+    GatewayProfile gatewayProfile = 1;
 }
 
-message CreateGatewayConfigurationResponse {
+message CreateGatewayProfileResponse {
     // ID of the create configuration object.
+    string gatewayProfileID = 1;
+}
+
+message GetGatewayProfileRequest {
+    // ID of the gateway-profile.
     string id = 1;
 }
 
-message GetGatewayConfigurationRequest {
-    // ID of the gateway configuration.
-    string id = 1;
-}
-
-message GetGatewayConfigurationResponse {
-    GatewayConfiguration gatewayConfiguration = 1;
+message GetGatewayProfileResponse {
+    GatewayProfile gatewayProfile = 1;
     string createdAt = 2;
     string updatedAt = 3;
 }
 
-message UpdateGatewayConfigurationRequest {
-    GatewayConfiguration gatewayConfiguration = 1;
+message UpdateGatewayProfileRequest {
+    GatewayProfile gatewayProfile = 1;
 }
 
-message UpdateGatewayConfigurationResponse {}
+message UpdateGatewayProfileResponse {}
 
-message DeleteGatewayConfigurationRequest {
-    // ID of the gateway configuration.
-    string id = 1;
+message DeleteGatewayProfileRequest {
+    // ID of the gateway-profile.
+    string gatewayProfileID = 1;
 }
 
-message DeleteGatewayConfigurationResponse {}
+message DeleteGatewayProfileResponse {}

@@ -969,11 +969,11 @@ func TestNetworkServerAPI(t *testing.T) {
 				})
 			})
 
-			Convey("When creating a gateway configuration object", func() {
-				req := ns.CreateGatewayConfigurationRequest{
-					GatewayConfiguration: &ns.GatewayConfiguration{
+			Convey("When creating a gateway-profile object", func() {
+				req := ns.CreateGatewayProfileRequest{
+					GatewayProfile: &ns.GatewayProfile{
 						Channels: []int32{0, 1, 2},
-						ExtraChannels: []*ns.GatewayConfigurationExtraChannel{
+						ExtraChannels: []*ns.GatewayProfileExtraChannel{
 							{
 								Modulation:       ns.Modulation_LORA,
 								Frequency:        868700000,
@@ -989,28 +989,28 @@ func TestNetworkServerAPI(t *testing.T) {
 						},
 					},
 				}
-				createResp, err := api.CreateGatewayConfiguration(ctx, &req)
+				createResp, err := api.CreateGatewayProfile(ctx, &req)
 				So(err, ShouldBeNil)
 				So(createResp.Id, ShouldNotEqual, "")
 
 				Convey("Then it can be retrieved", func() {
-					req.GatewayConfiguration.Id = createResp.Id
+					req.GatewayProfile.Id = createResp.Id
 
-					getResp, err := api.GetGatewayConfiguration(ctx, &ns.GetGatewayConfigurationRequest{
+					getResp, err := api.GetGatewayProfile(ctx, &ns.GetGatewayProfileRequest{
 						Id: createResp.Id,
 					})
 					So(err, ShouldBeNil)
 					So(getResp.CreatedAt, ShouldNotEqual, "")
 					So(getResp.UpdatedAt, ShouldNotEqual, "")
-					So(getResp.GatewayConfiguration, ShouldResemble, req.GatewayConfiguration)
+					So(getResp.GatewayProfile, ShouldResemble, req.GatewayProfile)
 				})
 
 				Convey("Then it can be updated", func() {
-					updateReq := ns.UpdateGatewayConfigurationRequest{
-						GatewayConfiguration: &ns.GatewayConfiguration{
+					updateReq := ns.UpdateGatewayProfileRequest{
+						GatewayProfile: &ns.GatewayProfile{
 							Id:       createResp.Id,
 							Channels: []int32{0, 1},
-							ExtraChannels: []*ns.GatewayConfigurationExtraChannel{
+							ExtraChannels: []*ns.GatewayProfileExtraChannel{
 								{
 									Modulation: ns.Modulation_FSK,
 									Frequency:  868900000,
@@ -1026,23 +1026,23 @@ func TestNetworkServerAPI(t *testing.T) {
 							},
 						},
 					}
-					_, err := api.UpdateGatewayConfiguration(ctx, &updateReq)
+					_, err := api.UpdateGatewayProfile(ctx, &updateReq)
 					So(err, ShouldBeNil)
 
-					resp, err := api.GetGatewayConfiguration(ctx, &ns.GetGatewayConfigurationRequest{
+					resp, err := api.GetGatewayProfile(ctx, &ns.GetGatewayProfileRequest{
 						Id: createResp.Id,
 					})
 					So(err, ShouldBeNil)
-					So(resp.GatewayConfiguration, ShouldResemble, updateReq.GatewayConfiguration)
+					So(resp.GatewayProfile, ShouldResemble, updateReq.GatewayProfile)
 				})
 
 				Convey("Then it can be deleted", func() {
-					_, err := api.DeleteGatewayConfiguration(ctx, &ns.DeleteGatewayConfigurationRequest{
+					_, err := api.DeleteGatewayProfile(ctx, &ns.DeleteGatewayProfileRequest{
 						Id: createResp.Id,
 					})
 					So(err, ShouldBeNil)
 
-					_, err = api.DeleteGatewayConfiguration(ctx, &ns.DeleteGatewayConfigurationRequest{
+					_, err = api.DeleteGatewayProfile(ctx, &ns.DeleteGatewayProfileRequest{
 						Id: createResp.Id,
 					})
 					So(err, ShouldNotBeNil)

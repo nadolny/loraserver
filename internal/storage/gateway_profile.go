@@ -15,7 +15,7 @@ const (
 	ModulationLoRa = "LORA"
 )
 
-// ExtraChannel defines an extra channel for the gateway configuration.
+// ExtraChannel defines an extra channel for the gateway-profile.
 type ExtraChannel struct {
 	Modulation       string  `db:"modulation"`
 	Frequency        int     `db:"frequency"`
@@ -24,35 +24,35 @@ type ExtraChannel struct {
 	SpreadingFactors []int64 `db:"spreading_factors"`
 }
 
-// GatewayConfiguration defines a gateway configuration.
-type GatewayConfiguration struct {
-	ID            string         `db:"id"`
-	CreatedAt     time.Time      `db:"created_at"`
-	UpdatedAt     time.Time      `db:"updated_at"`
-	Channels      []int64        `db:"channels"`
-	ExtraChannels []ExtraChannel `db:"-"`
+// GatewayProfile defines a gateway-profile.
+type GatewayProfile struct {
+	GatewayProfileID string         `db:"gateway_profile_id"`
+	CreatedAt        time.Time      `db:"created_at"`
+	UpdatedAt        time.Time      `db:"updated_at"`
+	Channels         []int64        `db:"channels"`
+	ExtraChannels    []ExtraChannel `db:"-"`
 }
 
-// CreateGatewayConfiguration creates the given gateway configuration.
+// CreateGatewayProfile creates the given gateway-profile.
 // As this will execute multiple SQL statements, it is recommended to perform
 // this within a transaction.
-func CreateGatewayConfiguration(db sqlx.Execer, c *GatewayConfiguration) error {
+func CreateGatewayProfile(db sqlx.Execer, c *GatewayProfile) error {
 	now := time.Now()
 	c.CreatedAt = now
 	c.UpdatedAt = now
 
-	if c.ID == "" {
-		c.ID = uuid.NewV4().String()
+	if c.GatewayProfileID == "" {
+		c.GatewayProfileID = uuid.NewV4().String()
 	}
 
 	_, err := db.Exec(`
-		insert into gateway_configuration (
-			id,
+		insert into gateway_profile (
+			gateway_profile_id,
 			created_at,
 			updated_at,
 			channels
 		) values ($1, $2, $3, $4)`,
-		c.ID,
+		c.GatewayProfileID,
 		c.CreatedAt,
 		c.UpdatedAt,
 		pq.Array(c.Channels),
@@ -63,15 +63,15 @@ func CreateGatewayConfiguration(db sqlx.Execer, c *GatewayConfiguration) error {
 
 	for _, ec := range c.ExtraChannels {
 		_, err := db.Exec(`
-			insert into gateway_configuration_extra_channel (
-				gateway_configuration_id,
+			insert into gateway_profile_extra_channel (
+				gateway_profile_id,
 				modulation,
 				frequency,
 				bandwidth,
 				bitrate,
 				spreading_factors
 			) values ($1, $2, $3, $4, $5, $6)`,
-			c.ID,
+			c.GatewayProfileID,
 			ec.Modulation,
 			ec.Frequency,
 			ec.Bandwidth,
@@ -84,28 +84,28 @@ func CreateGatewayConfiguration(db sqlx.Execer, c *GatewayConfiguration) error {
 	}
 
 	log.WithFields(log.Fields{
-		"id": c.ID,
-	}).Info("gateway configuration created")
+		"gateway_profile_id": c.GatewayProfileID,
+	}).Info("gateway-profile created")
 
 	return nil
 }
 
-// GetGatewayConfiguration returns the gateway configuration matching the
+// GetGatewayProfile returns the gateway-profile matching the
 // given ID.
-func GetGatewayConfiguration(db sqlx.Queryer, id string) (GatewayConfiguration, error) {
-	var c GatewayConfiguration
+func GetGatewayProfile(db sqlx.Queryer, id string) (GatewayProfile, error) {
+	var c GatewayProfile
 	err := db.QueryRowx(`
 		select
-			id,
+			gateway_profile_id,
 			created_at,
 			updated_at,
 			channels
-		from gateway_configuration
+		from gateway_profile
 		where
-			id = $1`,
+			gateway_profile_id = $1`,
 		id,
 	).Scan(
-		&c.ID,
+		&c.GatewayProfileID,
 		&c.CreatedAt,
 		&c.UpdatedAt,
 		pq.Array(&c.Channels),
@@ -121,9 +121,9 @@ func GetGatewayConfiguration(db sqlx.Queryer, id string) (GatewayConfiguration, 
 			bandwidth,
 			bitrate,
 			spreading_factors
-		from gateway_configuration_extra_channel
+		from gateway_profile_extra_channel
 		where
-			gateway_configuration_id = $1
+			gateway_profile_id = $1
 		order by id`,
 		id,
 	)
@@ -150,19 +150,19 @@ func GetGatewayConfiguration(db sqlx.Queryer, id string) (GatewayConfiguration, 
 	return c, nil
 }
 
-// UpdateGatewayConfiguration updates the given gateway configuration.
+// UpdateGatewayProfile updates the given gateway-profile.
 // As this will execute multiple SQL statements, it is recommended to perform
 // this within a transaction.
-func UpdateGatewayConfiguration(db sqlx.Execer, c *GatewayConfiguration) error {
+func UpdateGatewayProfile(db sqlx.Execer, c *GatewayProfile) error {
 	c.UpdatedAt = time.Now()
 	res, err := db.Exec(`
-		update gateway_configuration
+		update gateway_profile
 		set
 			updated_at = $2,
 			channels = $3
 		where
-			id = $1`,
-		c.ID,
+			gateway_profile_id = $1`,
+		c.GatewayProfileID,
 		c.UpdatedAt,
 		pq.Array(c.Channels),
 	)
@@ -183,25 +183,25 @@ func UpdateGatewayConfiguration(db sqlx.Execer, c *GatewayConfiguration) error {
 	// the 'simple' solution of re-creating all the extra channels has been
 	// implemented.
 	_, err = db.Exec(`
-		delete from gateway_configuration_extra_channel
+		delete from gateway_profile_extra_channel
 		where
-			gateway_configuration_id = $1`,
-		c.ID,
+			gateway_profile_id = $1`,
+		c.GatewayProfileID,
 	)
 	if err != nil {
 		return handlePSQLError(err, "delete error")
 	}
 	for _, ec := range c.ExtraChannels {
 		_, err := db.Exec(`
-			insert into gateway_configuration_extra_channel (
-				gateway_configuration_id,
+			insert into gateway_profile_extra_channel (
+				gateway_profile_id,
 				modulation,
 				frequency,
 				bandwidth,
 				bitrate,
 				spreading_factors
 			) values ($1, $2, $3, $4, $5, $6)`,
-			c.ID,
+			c.GatewayProfileID,
 			ec.Modulation,
 			ec.Frequency,
 			ec.Bandwidth,
@@ -214,19 +214,19 @@ func UpdateGatewayConfiguration(db sqlx.Execer, c *GatewayConfiguration) error {
 	}
 
 	log.WithFields(log.Fields{
-		"id": c.ID,
-	}).Info("gateway configuration updated")
+		"gateway_profile_id": c.GatewayProfileID,
+	}).Info("gateway-profile updated")
 
 	return nil
 }
 
-// DeleteGatewayConfiguration deletes the gateway-configuration matching the
+// DeleteGatewayProfile deletes the gateway-profile matching the
 // given ID.
-func DeleteGatewayConfiguration(db sqlx.Execer, id string) error {
+func DeleteGatewayProfile(db sqlx.Execer, id string) error {
 	res, err := db.Exec(`
-		delete from gateway_configuration
+		delete from gateway_profile
 		where
-			id = $1`,
+			gateway_profile_id = $1`,
 		id,
 	)
 	if err != nil {
@@ -242,8 +242,8 @@ func DeleteGatewayConfiguration(db sqlx.Execer, id string) error {
 	}
 
 	log.WithFields(log.Fields{
-		"id": id,
-	}).Info("gateway configuration deleted")
+		"gateway_profile_id": id,
+	}).Info("gateway-profile deleted")
 
 	return nil
 }
