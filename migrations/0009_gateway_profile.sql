@@ -22,7 +22,7 @@ create table gateway_profile_extra_channel (
 create index idx_gateway_profile_extra_channel_gw_profile_id on gateway_profile_extra_channel(gateway_profile_id);
 
 alter table gateway
-    add column gateway_profile_id uuid;
+    add column gateway_profile_id uuid references gateway_profile;
 
 create index idx_gateway_gateway_profile_id on gateway(gateway_profile_id);
 
