@@ -712,8 +712,8 @@ func (n *NetworkServerAPI) CreateGateway(ctx context.Context, req *ns.CreateGate
 		},
 		Altitude: req.Altitude,
 	}
-	if req.ChannelConfigurationID != 0 {
-		gw.ChannelConfigurationID = &req.ChannelConfigurationID
+	if req.GatewayProfileID != "" {
+		gw.GatewayProfileID = &req.GatewayProfileID
 	}
 
 	err := gateway.CreateGateway(config.C.PostgreSQL.DB, &gw)
@@ -747,10 +747,10 @@ func (n *NetworkServerAPI) UpdateGateway(ctx context.Context, req *ns.UpdateGate
 		return nil, errToRPCError(err)
 	}
 
-	if req.ChannelConfigurationID != 0 {
-		gw.ChannelConfigurationID = &req.ChannelConfigurationID
+	if req.GatewayProfileID != "" {
+		gw.GatewayProfileID = &req.GatewayProfileID
 	} else {
-		gw.ChannelConfigurationID = nil
+		gw.GatewayProfileID = nil
 	}
 
 	gw.Name = req.Name
@@ -1292,8 +1292,8 @@ func gwToResp(gw gateway.Gateway) *ns.GetGatewayResponse {
 		resp.LastSeenAt = gw.LastSeenAt.Format(time.RFC3339Nano)
 	}
 
-	if gw.ChannelConfigurationID != nil {
-		resp.ChannelConfigurationID = *gw.ChannelConfigurationID
+	if gw.GatewayProfileID != nil {
+		resp.GatewayProfileID = *gw.GatewayProfileID
 	}
 
 	return &resp

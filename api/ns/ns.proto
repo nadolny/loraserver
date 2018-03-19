@@ -448,8 +448,8 @@ message CreateGatewayRequest {
     // Altitude of the gateway.
     double altitude = 6;
 
-    // ID of the channel-configuration (optional).
-    int64 channelConfigurationID = 7;
+    // ID of the gateway-profile (optional).
+    string gatewayProfileID = 8;
 }
 
 message CreateGatewayResponse {}
@@ -490,8 +490,8 @@ message GetGatewayResponse {
     // The timestamp when the gateway was last seen.
     string lastSeenAt = 10;
 
-    // ID of the channel-configuration (optional).
-    int64 channelConfigurationID = 11;
+    // ID of the gateway-profile (optional).
+    string gatewayProfileID = 12;
 }
 
 message UpdateGatewayRequest {
@@ -513,8 +513,8 @@ message UpdateGatewayRequest {
     // Altitude of the gateway.
     double altitude = 6;
 
-    // ID of the channel-configuration (optional).
-    int64 channelConfigurationID = 7;
+    // ID of the gateway-profile.
+    string gatewayProfileID = 8;
 }
 
 message UpdateGatewayResponse {}
