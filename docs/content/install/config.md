@@ -356,6 +356,7 @@ get_downlink_data_delay="100ms"
   downlink_topic_template="gateway/{{ .MAC }}/tx"
   stats_topic_template="gateway/+/stats"
   ack_topic_template="gateway/+/ack"
+  config_topic_template="gateway/{{ .MAC }}/config"
 
   # MQTT server (e.g. scheme://host:port where scheme is tcp, ssl or ws)
   server="tcp://localhost:1883"

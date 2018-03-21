@@ -114,7 +114,7 @@ get_downlink_data_delay="{{ .NetworkServer.GetDownlinkDataDelay }}"
   # LoRaWAN band to use.
   #
   # Valid values are:
-  # *	AS_923
+  # * AS_923
   # * AU_915_928
   # * CN_470_510
   # * CN_779_787
@@ -308,6 +308,7 @@ get_downlink_data_delay="{{ .NetworkServer.GetDownlinkDataDelay }}"
   downlink_topic_template="{{ .NetworkServer.Gateway.Backend.MQTT.DownlinkTopicTemplate }}"
   stats_topic_template="{{ .NetworkServer.Gateway.Backend.MQTT.StatsTopicTemplate }}"
   ack_topic_template="{{ .NetworkServer.Gateway.Backend.MQTT.AckTopicTemplate }}"
+  config_topic_template="{{ .NetworkServer.Gateway.Backend.MQTT.ConfigTopicTemplate }}"
 
   # MQTT server (e.g. scheme://host:port where scheme is tcp, ssl or ws)
   server="{{ .NetworkServer.Gateway.Backend.MQTT.Server }}"
