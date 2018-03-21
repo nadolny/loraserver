@@ -785,7 +785,7 @@ message GatewayProfile {
 
     // Default channels (channels specified by the LoRaWAN Regional Parameters
     // specification) enabled for this configuration.
-    repeated int32 channels = 2;
+    repeated uint32 channels = 2;
 
     // Extra channels added to the channel-configuration (in case the LoRaWAN
     // region supports adding custom channels).
@@ -797,16 +797,16 @@ message GatewayProfileExtraChannel {
     Modulation modulation = 1;
 
     // Frequency.
-    int32 frequency = 2;
+    uint32 frequency = 2;
 
     // Bandwidth.
-    int32 bandwidth = 3;
+    uint32 bandwidth = 3;
 
     // Bitrate (in case of FSK modulation).
-    int32 bitrate = 4;
+    uint32 bitrate = 4;
 
     // Spreading factors (in case of LoRa modulation).
-    repeated int32 spreadingFactors = 5;
+    repeated uint32 spreadingFactors = 5;
 }
 
 message CreateGatewayProfileRequest {

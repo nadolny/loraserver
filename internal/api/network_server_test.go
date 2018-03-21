@@ -972,13 +972,13 @@ func TestNetworkServerAPI(t *testing.T) {
 			Convey("When creating a gateway-profile object", func() {
 				req := ns.CreateGatewayProfileRequest{
 					GatewayProfile: &ns.GatewayProfile{
-						Channels: []int32{0, 1, 2},
+						Channels: []uint32{0, 1, 2},
 						ExtraChannels: []*ns.GatewayProfileExtraChannel{
 							{
 								Modulation:       ns.Modulation_LORA,
 								Frequency:        868700000,
 								Bandwidth:        125,
-								SpreadingFactors: []int32{10, 11, 12},
+								SpreadingFactors: []uint32{10, 11, 12},
 							},
 							{
 								Modulation: ns.Modulation_FSK,
@@ -1009,7 +1009,7 @@ func TestNetworkServerAPI(t *testing.T) {
 					updateReq := ns.UpdateGatewayProfileRequest{
 						GatewayProfile: &ns.GatewayProfile{
 							GatewayProfileID: createResp.GatewayProfileID,
-							Channels:         []int32{0, 1},
+							Channels:         []uint32{0, 1},
 							ExtraChannels: []*ns.GatewayProfileExtraChannel{
 								{
 									Modulation: ns.Modulation_FSK,
@@ -1021,7 +1021,7 @@ func TestNetworkServerAPI(t *testing.T) {
 									Modulation:       ns.Modulation_LORA,
 									Frequency:        868700000,
 									Bandwidth:        125,
-									SpreadingFactors: []int32{10, 11, 12},
+									SpreadingFactors: []uint32{10, 11, 12},
 								},
 							},
 						},

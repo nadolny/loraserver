@@ -975,14 +975,14 @@ func (n *NetworkServerAPI) GetGatewayProfile(ctx context.Context, req *ns.GetGat
 	}
 
 	for _, c := range gc.Channels {
-		out.GatewayProfile.Channels = append(out.GatewayProfile.Channels, int32(c))
+		out.GatewayProfile.Channels = append(out.GatewayProfile.Channels, uint32(c))
 	}
 
 	for _, ec := range gc.ExtraChannels {
 		c := ns.GatewayProfileExtraChannel{
-			Frequency: int32(ec.Frequency),
-			Bandwidth: int32(ec.Bandwidth),
-			Bitrate:   int32(ec.Bitrate),
+			Frequency: uint32(ec.Frequency),
+			Bandwidth: uint32(ec.Bandwidth),
+			Bitrate:   uint32(ec.Bitrate),
 		}
 
 		switch ec.Modulation {
@@ -993,7 +993,7 @@ func (n *NetworkServerAPI) GetGatewayProfile(ctx context.Context, req *ns.GetGat
 		}
 
 		for _, sf := range ec.SpreadingFactors {
-			c.SpreadingFactors = append(c.SpreadingFactors, int32(sf))
+			c.SpreadingFactors = append(c.SpreadingFactors, uint32(sf))
 		}
 
 		out.GatewayProfile.ExtraChannels = append(out.GatewayProfile.ExtraChannels, &c)
