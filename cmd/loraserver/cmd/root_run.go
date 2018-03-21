@@ -22,11 +22,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"github.com/brocaar/loraserver/api/gw"
 	"github.com/brocaar/loraserver/api/nc"
 	"github.com/brocaar/loraserver/api/ns"
 	"github.com/brocaar/loraserver/internal/api"
-	"github.com/brocaar/loraserver/internal/api/auth"
 	"github.com/brocaar/loraserver/internal/api/client/asclient"
 	"github.com/brocaar/loraserver/internal/api/client/jsclient"
 	"github.com/brocaar/loraserver/internal/backend/controller"
@@ -61,7 +59,6 @@ func run(cmd *cobra.Command, args []string) error {
 		setNetworkController,
 		runDatabaseMigrations,
 		startAPIServer,
-		startGatewayAPIServer,
 		startLoRaServer(server),
 		startStatsServer(gwStats),
 		startQueueScheduler,
@@ -324,38 +321,6 @@ func startAPIServer() error {
 		return errors.Wrap(err, "start api listener error")
 	}
 	go gs.Serve(ln)
-	return nil
-}
-
-func startGatewayAPIServer() error {
-	log.WithFields(log.Fields{
-		"bind":     config.C.NetworkServer.Gateway.API.Bind,
-		"ca-cert":  config.C.NetworkServer.Gateway.API.CACert,
-		"tls-cert": config.C.NetworkServer.Gateway.API.TLSCert,
-		"tls-key":  config.C.NetworkServer.Gateway.API.TLSKey,
-	}).Info("starting gateway api server")
-
-	var validator auth.Validator
-	if config.C.NetworkServer.Gateway.API.JWTSecret != "" {
-		validator = auth.NewJWTValidator("HS256", config.C.NetworkServer.Gateway.API.JWTSecret)
-	} else {
-		return errors.New("gateway jwt_secret must be set")
-	}
-
-	opts := gRPCLoggingServerOptions()
-	if config.C.NetworkServer.Gateway.API.TLSCert != "" && config.C.NetworkServer.Gateway.API.TLSKey != "" {
-		creds := mustGetTransportCredentials(config.C.NetworkServer.Gateway.API.TLSCert, config.C.NetworkServer.Gateway.API.TLSKey, config.C.NetworkServer.Gateway.API.CACert, false)
-		opts = append(opts, grpc.Creds(creds))
-	}
-	gs := grpc.NewServer(opts...)
-	gwAPI := api.NewGatewayAPI(validator)
-	gw.RegisterGatewayServer(gs, gwAPI)
-
-	gwServerLn, err := net.Listen("tcp", config.C.NetworkServer.Gateway.API.Bind)
-	if err != nil {
-		return errors.Wrap(err, "start gateway api server listener error")
-	}
-	go gs.Serve(gwServerLn)
 	return nil
 }
 

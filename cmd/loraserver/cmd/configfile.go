@@ -264,25 +264,6 @@ get_downlink_data_delay="{{ .NetworkServer.GetDownlinkDataDelay }}"
   # tls key used by the api server (optional)
   tls_key="{{ .NetworkServer.API.TLSKey }}"
 
-  # Gateway API
-  # 
-  # This API is used by the LoRa Channel Manager component to fetch
-  # channel configuration.
-  [network_server.gateway.api]
-  # ip:port to bind the api server
-  bind="{{ .NetworkServer.Gateway.API.Bind }}"
-
-  # CA certificate used by the api server (optional)
-  ca_cert="{{ .NetworkServer.Gateway.API.CACert }}"
-
-  # tls certificate used by the api server (optional)
-  tls_cert="{{ .NetworkServer.Gateway.API.TLSCert }}"
-
-  # tls key used by the api server (optional)
-  tls_key="{{ .NetworkServer.Gateway.API.TLSKey }}"
-
-  # JWT secret used by the gateway api server for gateway authentication / authorization
-  jwt_secret="{{ .NetworkServer.Gateway.API.JWTSecret }}"
 
   # Gateway statistics settings.
   [network_server.gateway.stats]
