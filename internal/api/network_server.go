@@ -17,7 +17,6 @@ import (
 	"github.com/brocaar/loraserver/internal/downlink/data/classb"
 	proprietarydown "github.com/brocaar/loraserver/internal/downlink/proprietary"
 	"github.com/brocaar/loraserver/internal/framelog"
-	"github.com/brocaar/loraserver/internal/gateway"
 	"github.com/brocaar/loraserver/internal/storage"
 	"github.com/brocaar/lorawan"
 	"github.com/brocaar/lorawan/backend"
@@ -702,11 +701,11 @@ func (n *NetworkServerAPI) CreateGateway(ctx context.Context, req *ns.CreateGate
 	var mac lorawan.EUI64
 	copy(mac[:], req.Mac)
 
-	gw := gateway.Gateway{
+	gw := storage.Gateway{
 		MAC:         mac,
 		Name:        req.Name,
 		Description: req.Description,
-		Location: gateway.GPSPoint{
+		Location: storage.GPSPoint{
 			Latitude:  req.Latitude,
 			Longitude: req.Longitude,
 		},
@@ -716,7 +715,7 @@ func (n *NetworkServerAPI) CreateGateway(ctx context.Context, req *ns.CreateGate
 		gw.GatewayProfileID = &req.GatewayProfileID
 	}
 
-	err := gateway.CreateGateway(config.C.PostgreSQL.DB, &gw)
+	err := storage.CreateGateway(config.C.PostgreSQL.DB, &gw)
 	if err != nil {
 		return nil, errToRPCError(err)
 	}
@@ -729,7 +728,7 @@ func (n *NetworkServerAPI) GetGateway(ctx context.Context, req *ns.GetGatewayReq
 	var mac lorawan.EUI64
 	copy(mac[:], req.Mac)
 
-	gw, err := gateway.GetGateway(config.C.PostgreSQL.DB, mac)
+	gw, err := storage.GetGateway(config.C.PostgreSQL.DB, mac)
 	if err != nil {
 		return nil, errToRPCError(err)
 	}
@@ -742,7 +741,7 @@ func (n *NetworkServerAPI) UpdateGateway(ctx context.Context, req *ns.UpdateGate
 	var mac lorawan.EUI64
 	copy(mac[:], req.Mac)
 
-	gw, err := gateway.GetGateway(config.C.PostgreSQL.DB, mac)
+	gw, err := storage.GetGateway(config.C.PostgreSQL.DB, mac)
 	if err != nil {
 		return nil, errToRPCError(err)
 	}
@@ -755,13 +754,13 @@ func (n *NetworkServerAPI) UpdateGateway(ctx context.Context, req *ns.UpdateGate
 
 	gw.Name = req.Name
 	gw.Description = req.Description
-	gw.Location = gateway.GPSPoint{
+	gw.Location = storage.GPSPoint{
 		Latitude:  req.Latitude,
 		Longitude: req.Longitude,
 	}
 	gw.Altitude = req.Altitude
 
-	err = gateway.UpdateGateway(config.C.PostgreSQL.DB, &gw)
+	err = storage.UpdateGateway(config.C.PostgreSQL.DB, &gw)
 	if err != nil {
 		return nil, errToRPCError(err)
 	}
@@ -769,35 +768,12 @@ func (n *NetworkServerAPI) UpdateGateway(ctx context.Context, req *ns.UpdateGate
 	return &ns.UpdateGatewayResponse{}, nil
 }
 
-// ListGateways returns the existing gateways.
-func (n *NetworkServerAPI) ListGateways(ctx context.Context, req *ns.ListGatewayRequest) (*ns.ListGatewayResponse, error) {
-	count, err := gateway.GetGatewayCount(config.C.PostgreSQL.DB)
-	if err != nil {
-		return nil, errToRPCError(err)
-	}
-
-	gws, err := gateway.GetGateways(config.C.PostgreSQL.DB, int(req.Limit), int(req.Offset))
-	if err != nil {
-		return nil, errToRPCError(err)
-	}
-
-	resp := ns.ListGatewayResponse{
-		TotalCount: int32(count),
-	}
-
-	for _, gw := range gws {
-		resp.Result = append(resp.Result, gwToResp(gw))
-	}
-
-	return &resp, nil
-}
-
 // DeleteGateway deletes a gateway.
 func (n *NetworkServerAPI) DeleteGateway(ctx context.Context, req *ns.DeleteGatewayRequest) (*ns.DeleteGatewayResponse, error) {
 	var mac lorawan.EUI64
 	copy(mac[:], req.Mac)
 
-	err := gateway.DeleteGateway(config.C.PostgreSQL.DB, mac)
+	err := storage.DeleteGateway(config.C.PostgreSQL.DB, mac)
 	if err != nil {
 		return nil, errToRPCError(err)
 	}
@@ -820,7 +796,7 @@ func (n *NetworkServerAPI) GetGatewayStats(ctx context.Context, req *ns.GetGatew
 		return nil, grpc.Errorf(codes.InvalidArgument, "parse end timestamp: %s", err)
 	}
 
-	stats, err := gateway.GetGatewayStats(config.C.PostgreSQL.DB, mac, req.Interval.String(), start, end)
+	stats, err := storage.GetGatewayStats(config.C.PostgreSQL.DB, mac, req.Interval.String(), start, end)
 	if err != nil {
 		return nil, errToRPCError(err)
 	}
@@ -1272,7 +1248,7 @@ func (n *NetworkServerAPI) MigrateChannelConfigurationToGatewayProfile(ctx conte
 	return &out, nil
 }
 
-func gwToResp(gw gateway.Gateway) *ns.GetGatewayResponse {
+func gwToResp(gw storage.Gateway) *ns.GetGatewayResponse {
 	resp := ns.GetGatewayResponse{
 		Mac:         gw.MAC[:],
 		Name:        gw.Name,

@@ -17,7 +17,6 @@ import (
 	"github.com/brocaar/loraserver/internal/common"
 	"github.com/brocaar/loraserver/internal/config"
 	"github.com/brocaar/loraserver/internal/framelog"
-	"github.com/brocaar/loraserver/internal/gateway"
 	"github.com/brocaar/loraserver/internal/gps"
 	"github.com/brocaar/loraserver/internal/models"
 	"github.com/brocaar/loraserver/internal/storage"
@@ -36,7 +35,7 @@ func TestNetworkServerAPI(t *testing.T) {
 	config.C.Redis.Pool = common.NewRedisPool(conf.RedisURL)
 	config.C.NetworkServer.NetID = [3]byte{1, 2, 3}
 
-	gateway.MustSetStatsAggregationIntervals([]string{"MINUTE"})
+	storage.MustSetStatsAggregationIntervals([]string{"MINUTE"})
 
 	Convey("Given a clean PostgreSQL and Redis database + api instance", t, func() {
 		test.MustResetDB(db)
@@ -905,17 +904,6 @@ func TestNetworkServerAPI(t *testing.T) {
 				So(resp.LastSeenAt, ShouldEqual, "")
 			})
 
-			Convey("Then ListGateways returns the gateway", func() {
-				resp, err := api.ListGateways(ctx, &ns.ListGatewayRequest{
-					Limit:  10,
-					Offset: 0,
-				})
-				So(err, ShouldBeNil)
-				So(resp.TotalCount, ShouldEqual, 1)
-				So(resp.Result, ShouldHaveLength, 1)
-				So(resp.Result[0].Mac, ShouldResemble, []byte{1, 2, 3, 4, 5, 6, 7, 8})
-			})
-
 			Convey("Then DeleteGateway deletes the gateway", func() {
 				_, err := api.DeleteGateway(ctx, &ns.DeleteGatewayRequest{
 					Mac: []byte{1, 2, 3, 4, 5, 6, 7, 8},
@@ -925,7 +913,7 @@ func TestNetworkServerAPI(t *testing.T) {
 				_, err = api.GetGateway(ctx, &ns.GetGatewayRequest{
 					Mac: []byte{1, 2, 3, 4, 5, 6, 7, 8},
 				})
-				So(err, ShouldResemble, grpc.Errorf(codes.NotFound, "gateway does not exist"))
+				So(err, ShouldResemble, grpc.Errorf(codes.NotFound, "object does not exist"))
 			})
 
 			Convey("Given some stats for this gateway", func() {

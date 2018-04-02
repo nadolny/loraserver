@@ -63,8 +63,6 @@ It has these top-level messages:
 	GetGatewayResponse
 	UpdateGatewayRequest
 	UpdateGatewayResponse
-	ListGatewayRequest
-	ListGatewayResponse
 	DeleteGatewayRequest
 	DeleteGatewayResponse
 	GatewayStats

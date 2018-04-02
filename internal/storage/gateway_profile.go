@@ -3,7 +3,6 @@ package storage
 import (
 	"time"
 
-	"github.com/brocaar/loraserver/internal/gateway"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 	"github.com/pkg/errors"
@@ -33,6 +32,11 @@ type GatewayProfile struct {
 	UpdatedAt        time.Time      `db:"updated_at"`
 	Channels         []int64        `db:"channels"`
 	ExtraChannels    []ExtraChannel `db:"-"`
+}
+
+// GetVersion returns the gateway-profile version.
+func (p GatewayProfile) GetVersion() string {
+	return p.UpdatedAt.UTC().Format(time.RFC3339Nano)
 }
 
 // CreateGatewayProfile creates the given gateway-profile.
@@ -268,28 +272,9 @@ func MigrateChannelConfigurationToGatewayProfile(db sqlx.Ext) (map[string]string
 	}
 
 	for _, cm := range configMigrate {
-		cc, err := gateway.GetChannelConfiguration(db, cm.ID)
+		gp, err := getChannelConfigurationToGatewayProfile(db, cm.ID)
 		if err != nil {
-			return nil, errors.Wrap(err, "get channel configuration error")
-		}
-
-		ec, err := gateway.GetExtraChannelsForChannelConfigurationID(db, cm.ID)
-		if err != nil {
-			return nil, errors.Wrap(err, "get extra channels for channel configuration error")
-		}
-
-		gp := GatewayProfile{
-			Channels: cc.Channels,
-		}
-
-		for i := range ec {
-			gp.ExtraChannels = append(gp.ExtraChannels, ExtraChannel{
-				Modulation:       ec[i].Modulation,
-				Frequency:        ec[i].Frequency,
-				Bandwidth:        ec[i].BandWidth,
-				Bitrate:          ec[i].BitRate,
-				SpreadingFactors: ec[i].SpreadFactors,
-			})
+			return nil, errors.Wrap(err, "get channel-configuration to gateway-profile error")
 		}
 
 		if err := CreateGatewayProfile(db, &gp); err != nil {
@@ -313,4 +298,54 @@ func MigrateChannelConfigurationToGatewayProfile(db sqlx.Ext) (map[string]string
 	}
 
 	return out, nil
+}
+
+func getChannelConfigurationToGatewayProfile(db sqlx.Queryer, id int64) (GatewayProfile, error) {
+	var gp GatewayProfile
+	err := db.QueryRowx(`
+		select
+			channels
+		from channel_configuration
+		where
+			id = $1`,
+		id,
+	).Scan(pq.Array(&gp.Channels))
+	if err != nil {
+		return gp, handlePSQLError(err, "select error")
+	}
+
+	rows, err := db.Query(`
+		select
+			modulation,
+			frequency,
+			bandwidth,
+			bit_rate,
+			spread_factors
+		from extra_channel
+		where
+			channel_configuration_id = $1
+		order by id`,
+		id,
+	)
+	if err != nil {
+		return gp, handlePSQLError(err, "select error")
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var ec ExtraChannel
+		err := rows.Scan(
+			&ec.Modulation,
+			&ec.Frequency,
+			&ec.Bandwidth,
+			&ec.Bitrate,
+			pq.Array(&ec.SpreadingFactors),
+		)
+		if err != nil {
+			return gp, handlePSQLError(err, "scan error")
+		}
+		gp.ExtraChannels = append(gp.ExtraChannels, ec)
+	}
+
+	return gp, nil
 }

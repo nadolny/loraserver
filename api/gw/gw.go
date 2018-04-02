@@ -108,7 +108,7 @@ type GatewayStatsPacket struct {
 	TXPacketsReceived   int                    `json:"txPacketsReceived"`
 	TXPacketsEmitted    int                    `json:"txPacketsEmitted"`
 	ConfigVersion       string                 `json:"configVersion,omitempty"`
-	CustomData          map[string]interface{} `json:"customData"` // custom fields defined by alternative packet_forwarder versions (e.g. TTN sends platform, contactEmail, and description)
+	CustomData          map[string]interface{} `json:"customData,omitempty"` // custom fields defined by alternative packet_forwarder versions (e.g. TTN sends platform, contactEmail, and description)
 }
 
 // Possible TX errors.

@@ -34,6 +34,7 @@ import (
 	"github.com/brocaar/loraserver/internal/downlink"
 	"github.com/brocaar/loraserver/internal/gateway"
 	"github.com/brocaar/loraserver/internal/migrations"
+	"github.com/brocaar/loraserver/internal/storage"
 	"github.com/brocaar/loraserver/internal/uplink"
 	"github.com/brocaar/lorawan"
 	"github.com/brocaar/lorawan/band"
@@ -132,7 +133,7 @@ func setRXParameters() error {
 
 func setStatsAggregationIntervals() error {
 	// get the gw stats aggregation intervals
-	gateway.MustSetStatsAggregationIntervals(config.C.NetworkServer.Gateway.Stats.AggregationIntervals)
+	storage.MustSetStatsAggregationIntervals(config.C.NetworkServer.Gateway.Stats.AggregationIntervals)
 	return nil
 }
 
