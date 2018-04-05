@@ -836,13 +836,16 @@ message MigrateNodeToDeviceSessionResponse {}
 message MigrateChannelConfigurationToGatewayProfileRequest {}
 
 message MigrateChannelConfigurationToGatewayProfileResponse {
-    repeated GatewayProfileMigration profiles = 1;
+    repeated GatewayProfileMigration migrated = 1;
 }
 
 message GatewayProfileMigration {
-    // ID of the gateway-profile.
-    string id = 1;
+    // ID Of the created gateway-profile.
+    string gatewayProfileID = 1;
 
-    // Name of the gateway-profile.
+    // Name of the channel-configuration.
     string name = 2;
+
+    // Gateway MACs using this gateway-profile.
+    repeated bytes macs = 3;
 }

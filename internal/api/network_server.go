@@ -1227,16 +1227,22 @@ func (n *NetworkServerAPI) MigrateChannelConfigurationToGatewayProfile(ctx conte
 	var out ns.MigrateChannelConfigurationToGatewayProfileResponse
 
 	err := storage.Transaction(config.C.PostgreSQL.DB, func(tx sqlx.Ext) error {
-		profiles, err := storage.MigrateChannelConfigurationToGatewayProfile(tx)
+		migrated, err := storage.MigrateChannelConfigurationToGatewayProfile(tx)
 		if err != nil {
 			return err
 		}
 
-		for k, v := range profiles {
-			out.Profiles = append(out.Profiles, &ns.GatewayProfileMigration{
-				Id:   k,
-				Name: v,
-			})
+		for i := range migrated {
+			gpm := ns.GatewayProfileMigration{
+				GatewayProfileID: migrated[i].GatewayProfileID,
+				Name:             migrated[i].Name,
+			}
+
+			for x := range migrated[i].Gateways {
+				gpm.Macs = append(gpm.Macs, migrated[i].Gateways[x][:])
+			}
+
+			out.Migrated = append(out.Migrated, &gpm)
 		}
 
 		return nil

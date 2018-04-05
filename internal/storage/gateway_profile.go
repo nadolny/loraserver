@@ -8,6 +8,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/brocaar/lorawan"
 )
 
 // Modulations
@@ -254,9 +256,17 @@ func DeleteGatewayProfile(db sqlx.Execer, id string) error {
 	return nil
 }
 
+// MigratedGatewayProfile contains the channel-configuration to
+// gateway-profile migration.
+type MigratedGatewayProfile struct {
+	GatewayProfileID string
+	Gateways         []lorawan.EUI64
+	Name             string
+}
+
 // MigrateChannelConfigurationToGatewayProfile migrates the channel configuration.
-func MigrateChannelConfigurationToGatewayProfile(db sqlx.Ext) (map[string]string, error) {
-	out := make(map[string]string)
+func MigrateChannelConfigurationToGatewayProfile(db sqlx.Ext) ([]MigratedGatewayProfile, error) {
+	var out []MigratedGatewayProfile
 	var configMigrate []struct {
 		ID   int64  `db:"id"`
 		Name string `db:"name"`
@@ -294,7 +304,25 @@ func MigrateChannelConfigurationToGatewayProfile(db sqlx.Ext) (map[string]string
 			return nil, handlePSQLError(err, "update error")
 		}
 
-		out[gp.GatewayProfileID] = cm.Name
+		var gateways []lorawan.EUI64
+		err = sqlx.Select(db, &gateways, `
+			select
+				mac
+			from
+				gateway
+			where
+				gateway_profile_id = $1`,
+			gp.GatewayProfileID,
+		)
+		if err != nil {
+			return nil, handlePSQLError(err, "select error")
+		}
+
+		out = append(out, MigratedGatewayProfile{
+			Gateways:         gateways,
+			GatewayProfileID: gp.GatewayProfileID,
+			Name:             cm.Name,
+		})
 	}
 
 	return out, nil
