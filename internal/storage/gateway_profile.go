@@ -294,7 +294,8 @@ func MigrateChannelConfigurationToGatewayProfile(db sqlx.Ext) ([]MigratedGateway
 		_, err = db.Exec(`
 			update gateway
 			set
-				gateway_profile_id = $2
+				gateway_profile_id = $2,
+				channel_configuration_id = null
 			where
 				channel_configuration_id = $1`,
 			cm.ID,
