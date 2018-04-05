@@ -256,7 +256,7 @@ func DeleteGatewayProfile(db sqlx.Execer, id string) error {
 
 // MigrateChannelConfigurationToGatewayProfile migrates the channel configuration.
 func MigrateChannelConfigurationToGatewayProfile(db sqlx.Ext) (map[string]string, error) {
-	var out map[string]string
+	out := make(map[string]string)
 	var configMigrate []struct {
 		ID   int64  `db:"id"`
 		Name string `db:"name"`
