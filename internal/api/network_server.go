@@ -541,11 +541,15 @@ func (n *NetworkServerAPI) DeleteDevice(ctx context.Context, req *ns.DeleteDevic
 func (n *NetworkServerAPI) ActivateDevice(ctx context.Context, req *ns.ActivateDeviceRequest) (*ns.ActivateDeviceResponse, error) {
 	var devEUI lorawan.EUI64
 	var devAddr lorawan.DevAddr
-	var nwkSKey lorawan.AES128Key
+	var fNwkSIntKey lorawan.AES128Key
+	var sNwkSIntKey lorawan.AES128Key
+	var nwkSEncKey lorawan.AES128Key
 
 	copy(devEUI[:], req.DevEUI)
 	copy(devAddr[:], req.DevAddr)
-	copy(nwkSKey[:], req.NwkSKey)
+	copy(fNwkSIntKey[:], req.FNwkSIntKey)
+	copy(sNwkSIntKey[:], req.SNwkSIntKey)
+	copy(nwkSEncKey[:], req.NwkSEncKey)
 
 	d, err := storage.GetDevice(config.C.PostgreSQL.DB, devEUI)
 	if err != nil {
@@ -574,11 +578,12 @@ func (n *NetworkServerAPI) ActivateDevice(ctx context.Context, req *ns.ActivateD
 
 		DevEUI:             devEUI,
 		DevAddr:            devAddr,
-		SNwkSIntKey:        nwkSKey,
-		FNwkSIntKey:        nwkSKey,
-		NwkSEncKey:         nwkSKey,
+		SNwkSIntKey:        sNwkSIntKey,
+		FNwkSIntKey:        fNwkSIntKey,
+		NwkSEncKey:         nwkSEncKey,
 		FCntUp:             req.FCntUp,
-		NFCntDown:          req.FCntDown,
+		NFCntDown:          req.NFCntDown,
+		AFCntDown:          req.AFCntDown,
 		SkipFCntValidation: req.SkipFCntCheck || d.SkipFCntCheck,
 
 		RXWindow:       storage.RX1,
@@ -645,9 +650,12 @@ func (n *NetworkServerAPI) GetDeviceActivation(ctx context.Context, req *ns.GetD
 
 	return &ns.GetDeviceActivationResponse{
 		DevAddr:       ds.DevAddr[:],
-		NwkSKey:       ds.NwkSEncKey[:],
+		SNwkSIntKey:   ds.SNwkSIntKey[:],
+		FNwkSIntKey:   ds.FNwkSIntKey[:],
+		NwkSEncKey:    ds.NwkSEncKey[:],
 		FCntUp:        ds.FCntUp,
-		FCntDown:      ds.NFCntDown,
+		NFCntDown:     ds.NFCntDown,
+		AFCntDown:     ds.AFCntDown,
 		SkipFCntCheck: ds.SkipFCntValidation,
 	}, nil
 }

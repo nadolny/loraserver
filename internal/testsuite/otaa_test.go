@@ -154,17 +154,19 @@ func TestOTAAScenarios(t *testing.T) {
 					PHYPayload: jrPayload,
 					DeviceActivations: []storage.DeviceActivation{
 						{
-							DevEUI:   d.DevEUI,
-							JoinEUI:  lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
-							DevAddr:  lorawan.DevAddr{},
-							NwkSKey:  lorawan.AES128Key{},
-							DevNonce: lorawan.DevNonce{1, 2},
+							DevEUI:      d.DevEUI,
+							JoinEUI:     lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
+							DevAddr:     lorawan.DevAddr{},
+							SNwkSIntKey: lorawan.AES128Key{},
+							FNwkSIntKey: lorawan.AES128Key{},
+							NwkSEncKey:  lorawan.AES128Key{},
+							DevNonce:    lorawan.DevNonce{1, 2},
 						},
 					},
 					ExpectedError: errors.New("validate dev-nonce error: object already exists"),
 				},
 				{
-					Name:       "join-request accepted using rx1",
+					Name:       "join-request accepted using rx1 (NwkSKey)",
 					RXInfo:     rxInfo,
 					PHYPayload: jrPayload,
 					AppKey:     appKey,
@@ -227,6 +229,77 @@ func TestOTAAScenarios(t *testing.T) {
 						LastDevStatusMargin:   127,
 						RX2Frequency:          config.C.NetworkServer.Band.Band.GetDefaults().RX2Frequency,
 						NbTrans:               1,
+					},
+				},
+				{
+					Name:       "join-request accepted using rx1 (SNwkSIntKey, FNwkSIntKey, NwkSEncKey)",
+					RXInfo:     rxInfo,
+					PHYPayload: jrPayload,
+					AppKey:     appKey,
+					JoinServerJoinAnsPayload: backend.JoinAnsPayload{
+						PHYPayload: backend.HEXBytes(jaBytes),
+						Result: backend.Result{
+							ResultCode: backend.Success,
+						},
+						SNwkSIntKey: &backend.KeyEnvelope{
+							AESKey: lorawan.AES128Key{16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1},
+						},
+						FNwkSIntKey: &backend.KeyEnvelope{
+							AESKey: lorawan.AES128Key{16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 2},
+						},
+						NwkSEncKey: &backend.KeyEnvelope{
+							AESKey: lorawan.AES128Key{16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 3},
+						},
+					},
+					DeviceQueueItems: []storage.DeviceQueueItem{
+						{
+							DevEUI:     lorawan.EUI64{2, 2, 3, 4, 5, 6, 7, 8},
+							FRMPayload: []byte{1, 2, 3, 4},
+							FCnt:       10,
+							FPort:      1,
+						},
+					},
+
+					ExpectedJoinReqPayload: backend.JoinReqPayload{
+						BasePayload: backend.BasePayload{
+							ProtocolVersion: backend.ProtocolVersion1_0,
+							SenderID:        "030201",
+							ReceiverID:      "0102030405060708",
+							MessageType:     backend.JoinReq,
+						},
+						MACVersion: dp.DeviceProfile.MACVersion,
+						PHYPayload: backend.HEXBytes(jrBytes),
+						DevEUI:     d.DevEUI,
+						DLSettings: lorawan.DLSettings{
+							RX2DataRate: uint8(config.C.NetworkServer.NetworkSettings.RX2DR),
+							RX1DROffset: uint8(config.C.NetworkServer.NetworkSettings.RX1DROffset),
+						},
+						RxDelay: config.C.NetworkServer.NetworkSettings.RX1Delay,
+					},
+					ExpectedTXInfo: gw.TXInfo{
+						MAC:       rxInfo.MAC,
+						Timestamp: &timestamp,
+						Frequency: rxInfo.Frequency,
+						Power:     14,
+						DataRate:  rxInfo.DataRate,
+						CodeRate:  rxInfo.CodeRate,
+					},
+					ExpectedPHYPayload: jaPHY,
+					ExpectedDeviceSession: storage.DeviceSession{
+						RoutingProfileID:      rp.RoutingProfile.RoutingProfileID,
+						DeviceProfileID:       dp.DeviceProfile.DeviceProfileID,
+						ServiceProfileID:      sp.ServiceProfile.ServiceProfileID,
+						JoinEUI:               lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
+						DevEUI:                lorawan.EUI64{2, 2, 3, 4, 5, 6, 7, 8},
+						SNwkSIntKey:           lorawan.AES128Key{16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1},
+						FNwkSIntKey:           lorawan.AES128Key{16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 2},
+						NwkSEncKey:            lorawan.AES128Key{16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 3},
+						RXWindow:              storage.RX1,
+						EnabledUplinkChannels: []int{0, 1, 2},
+						ExtraUplinkChannels:   map[int]band.Channel{},
+						UplinkGatewayHistory:  map[lorawan.EUI64]storage.UplinkGatewayHistory{},
+						LastDevStatusMargin:   127,
+						RX2Frequency:          config.C.NetworkServer.Band.Band.GetDefaults().RX2Frequency,
 					},
 				},
 				{
@@ -457,7 +530,9 @@ func runOTAATests(asClient *test.ApplicationClient, jsClient *test.JoinServerCli
 				da, err := storage.GetLastDeviceActivationForDevEUI(config.C.PostgreSQL.DB, t.ExpectedDeviceSession.DevEUI)
 				So(err, ShouldBeNil)
 				So(da.DevAddr, ShouldNotEqual, lorawan.DevAddr{})
-				So(da.NwkSKey, ShouldEqual, t.ExpectedDeviceSession.NwkSEncKey)
+				So(da.SNwkSIntKey, ShouldEqual, t.ExpectedDeviceSession.SNwkSIntKey)
+				So(da.FNwkSIntKey, ShouldEqual, t.ExpectedDeviceSession.FNwkSIntKey)
+				So(da.NwkSEncKey, ShouldEqual, t.ExpectedDeviceSession.NwkSEncKey)
 			})
 		})
 	}

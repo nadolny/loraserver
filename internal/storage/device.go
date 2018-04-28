@@ -22,13 +22,15 @@ type Device struct {
 
 // DeviceActivation defines the device-activation for a LoRaWAN device.
 type DeviceActivation struct {
-	ID        int64             `db:"id"`
-	CreatedAt time.Time         `db:"created_at"`
-	DevEUI    lorawan.EUI64     `db:"dev_eui"`
-	JoinEUI   lorawan.EUI64     `db:"join_eui"`
-	DevAddr   lorawan.DevAddr   `db:"dev_addr"`
-	NwkSKey   lorawan.AES128Key `db:"nwk_s_key"`
-	DevNonce  lorawan.DevNonce  `db:"dev_nonce"`
+	ID          int64             `db:"id"`
+	CreatedAt   time.Time         `db:"created_at"`
+	DevEUI      lorawan.EUI64     `db:"dev_eui"`
+	JoinEUI     lorawan.EUI64     `db:"join_eui"`
+	DevAddr     lorawan.DevAddr   `db:"dev_addr"`
+	FNwkSIntKey lorawan.AES128Key `db:"f_nwk_s_int_key"`
+	SNwkSIntKey lorawan.AES128Key `db:"s_nwk_s_int_key"`
+	NwkSEncKey  lorawan.AES128Key `db:"nwk_s_enc_key"`
+	DevNonce    lorawan.DevNonce  `db:"dev_nonce"`
 }
 
 // CreateDevice creates the given device.
@@ -140,15 +142,19 @@ func CreateDeviceActivation(db sqlx.Queryer, da *DeviceActivation) error {
 			dev_eui,
 			join_eui,
 			dev_addr,
-			nwk_s_key,
+			s_nwk_s_int_key,
+			f_nwk_s_int_key,
+			nwk_s_enc_key,
 			dev_nonce
-		) values ($1, $2, $3, $4, $5, $6)
+		) values ($1, $2, $3, $4, $5, $6, $7, $8)
 		returning id`,
 		da.CreatedAt,
 		da.DevEUI[:],
 		da.JoinEUI[:],
 		da.DevAddr[:],
-		da.NwkSKey[:],
+		da.SNwkSIntKey[:],
+		da.FNwkSIntKey[:],
+		da.NwkSEncKey[:],
 		da.DevNonce[:],
 	)
 	if err != nil {

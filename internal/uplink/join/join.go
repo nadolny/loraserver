@@ -276,13 +276,14 @@ func createNodeSession(ctx *context) error {
 }
 
 func createDeviceActivation(ctx *context) error {
-	// TODO ADD KEYS!!!
 	da := storage.DeviceActivation{
-		DevEUI:   ctx.DeviceSession.DevEUI,
-		JoinEUI:  ctx.DeviceSession.JoinEUI,
-		DevAddr:  ctx.DeviceSession.DevAddr,
-		NwkSKey:  ctx.DeviceSession.NwkSEncKey,
-		DevNonce: ctx.JoinRequestPayload.DevNonce,
+		DevEUI:      ctx.DeviceSession.DevEUI,
+		JoinEUI:     ctx.DeviceSession.JoinEUI,
+		DevAddr:     ctx.DeviceSession.DevAddr,
+		SNwkSIntKey: ctx.DeviceSession.SNwkSIntKey,
+		FNwkSIntKey: ctx.DeviceSession.FNwkSIntKey,
+		NwkSEncKey:  ctx.DeviceSession.NwkSEncKey,
+		DevNonce:    ctx.JoinRequestPayload.DevNonce,
 	}
 
 	if err := storage.CreateDeviceActivation(config.C.PostgreSQL.DB, &da); err != nil {
