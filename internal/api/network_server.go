@@ -574,9 +574,11 @@ func (n *NetworkServerAPI) ActivateDevice(ctx context.Context, req *ns.ActivateD
 
 		DevEUI:             devEUI,
 		DevAddr:            devAddr,
-		NwkSKey:            nwkSKey,
+		SNwkSIntKey:        nwkSKey,
+		FNwkSIntKey:        nwkSKey,
+		NwkSEncKey:         nwkSKey,
 		FCntUp:             req.FCntUp,
-		FCntDown:           req.FCntDown,
+		NFCntDown:          req.FCntDown,
 		SkipFCntValidation: req.SkipFCntCheck || d.SkipFCntCheck,
 
 		RXWindow:       storage.RX1,
@@ -643,9 +645,9 @@ func (n *NetworkServerAPI) GetDeviceActivation(ctx context.Context, req *ns.GetD
 
 	return &ns.GetDeviceActivationResponse{
 		DevAddr:       ds.DevAddr[:],
-		NwkSKey:       ds.NwkSKey[:],
+		NwkSKey:       ds.NwkSEncKey[:],
 		FCntUp:        ds.FCntUp,
-		FCntDown:      ds.FCntDown,
+		FCntDown:      ds.NFCntDown,
 		SkipFCntCheck: ds.SkipFCntValidation,
 	}, nil
 }
@@ -1167,7 +1169,7 @@ func (n *NetworkServerAPI) GetNextDownlinkFCntForDevEUI(ctx context.Context, req
 	if err != nil {
 		return nil, errToRPCError(err)
 	}
-	resp.FCnt = ds.FCntDown
+	resp.FCnt = ds.NFCntDown
 
 	items, err := storage.GetDeviceQueueItemsForDevEUI(config.C.PostgreSQL.DB, devEUI)
 	if err != nil {

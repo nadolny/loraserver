@@ -50,7 +50,7 @@ func TestGetNextDeviceQueueItem(t *testing.T) {
 				DeviceSession: storage.DeviceSession{
 					RoutingProfileID: rp.RoutingProfile.RoutingProfileID,
 					DevEUI:           d.DevEUI,
-					FCntDown:         10,
+					NFCntDown:        10,
 				},
 				RemainingPayloadSize: 242,
 			}
@@ -82,14 +82,14 @@ func TestGetNextDeviceQueueItem(t *testing.T) {
 			}{
 				{
 					BeforeFunc: func() {
-						ctx.DeviceSession.FCntDown = 12 // to skip all queue items
+						ctx.DeviceSession.NFCntDown = 12 // to skip all queue items
 					},
 					Name: "no queue items",
 					ExpecteddataContext: dataContext{
 						DeviceSession: storage.DeviceSession{
 							RoutingProfileID: rp.RoutingProfile.RoutingProfileID,
 							DevEUI:           d.DevEUI,
-							FCntDown:         12,
+							NFCntDown:        12,
 						},
 						RemainingPayloadSize: 242,
 					},
@@ -116,14 +116,14 @@ func TestGetNextDeviceQueueItem(t *testing.T) {
 				},
 				{
 					BeforeFunc: func() {
-						ctx.DeviceSession.FCntDown = 11 // skip first queue item
+						ctx.DeviceSession.NFCntDown = 11 // skip first queue item
 					},
 					Name: "second queue item (confirmed)",
 					ExpecteddataContext: dataContext{
 						DeviceSession: storage.DeviceSession{
 							RoutingProfileID: rp.RoutingProfile.RoutingProfileID,
 							DevEUI:           d.DevEUI,
-							FCntDown:         11,
+							NFCntDown:        11,
 						},
 						RemainingPayloadSize: 242 - len(items[1].FRMPayload),
 						Confirmed:            true,

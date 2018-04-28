@@ -97,10 +97,11 @@ func TestDeviceSession(t *testing.T) {
 
 		Convey("Given a device-session", func() {
 			s := DeviceSession{
-				DevAddr:             lorawan.DevAddr{1, 2, 3, 4},
-				DevEUI:              lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
-				ExtraUplinkChannels: map[int]band.Channel{},
-				RX2Frequency:        869525000,
+				DevAddr:              lorawan.DevAddr{1, 2, 3, 4},
+				DevEUI:               lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
+				ExtraUplinkChannels:  map[int]band.Channel{},
+				UplinkGatewayHistory: map[lorawan.EUI64]UplinkGatewayHistory{},
+				RX2Frequency:         869525000,
 			}
 
 			Convey("When getting a non-existing device-session", func() {
@@ -182,14 +183,18 @@ func TestGetDeviceSessionForPHYPayload(t *testing.T) {
 			{
 				DevAddr:            devAddr,
 				DevEUI:             lorawan.EUI64{1, 1, 1, 1, 1, 1, 1, 1},
-				NwkSKey:            lorawan.AES128Key{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				SNwkSIntKey:        lorawan.AES128Key{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				FNwkSIntKey:        lorawan.AES128Key{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				NwkSEncKey:         lorawan.AES128Key{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 				FCntUp:             100,
 				SkipFCntValidation: true,
 			},
 			{
 				DevAddr:            devAddr,
 				DevEUI:             lorawan.EUI64{2, 2, 2, 2, 2, 2, 2, 2},
-				NwkSKey:            lorawan.AES128Key{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+				SNwkSIntKey:        lorawan.AES128Key{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+				FNwkSIntKey:        lorawan.AES128Key{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+				NwkSEncKey:         lorawan.AES128Key{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
 				FCntUp:             200,
 				SkipFCntValidation: false,
 			},
@@ -202,7 +207,8 @@ func TestGetDeviceSessionForPHYPayload(t *testing.T) {
 			testTable := []struct {
 				Name           string
 				DevAddr        lorawan.DevAddr
-				NwkSKey        lorawan.AES128Key
+				SNwkSIntKey    lorawan.AES128Key
+				FNwkSIntKey    lorawan.AES128Key
 				FCnt           uint32
 				ExpectedDevEUI lorawan.EUI64
 				ExpectedFCntUp uint32
@@ -211,7 +217,8 @@ func TestGetDeviceSessionForPHYPayload(t *testing.T) {
 				{
 					Name:           "matching DevEUI 0101010101010101",
 					DevAddr:        devAddr,
-					NwkSKey:        deviceSessions[0].NwkSKey,
+					FNwkSIntKey:    deviceSessions[0].FNwkSIntKey,
+					SNwkSIntKey:    deviceSessions[0].SNwkSIntKey,
 					FCnt:           deviceSessions[0].FCntUp,
 					ExpectedFCntUp: deviceSessions[0].FCntUp,
 					ExpectedDevEUI: deviceSessions[0].DevEUI,
@@ -219,7 +226,8 @@ func TestGetDeviceSessionForPHYPayload(t *testing.T) {
 				{
 					Name:           "matching DevEUI 0202020202020202",
 					DevAddr:        devAddr,
-					NwkSKey:        deviceSessions[1].NwkSKey,
+					FNwkSIntKey:    deviceSessions[1].FNwkSIntKey,
+					SNwkSIntKey:    deviceSessions[1].SNwkSIntKey,
 					FCnt:           deviceSessions[1].FCntUp,
 					ExpectedFCntUp: deviceSessions[1].FCntUp,
 					ExpectedDevEUI: deviceSessions[1].DevEUI,
@@ -227,7 +235,8 @@ func TestGetDeviceSessionForPHYPayload(t *testing.T) {
 				{
 					Name:           "matching DevEUI 0101010101010101 with frame counter reset",
 					DevAddr:        devAddr,
-					NwkSKey:        deviceSessions[0].NwkSKey,
+					FNwkSIntKey:    deviceSessions[0].FNwkSIntKey,
+					SNwkSIntKey:    deviceSessions[0].SNwkSIntKey,
 					FCnt:           0,
 					ExpectedFCntUp: 0, // has been reset
 					ExpectedDevEUI: deviceSessions[0].DevEUI,
@@ -235,21 +244,24 @@ func TestGetDeviceSessionForPHYPayload(t *testing.T) {
 				{
 					Name:          "matching DevEUI 0202020202020202 with invalid frame counter",
 					DevAddr:       devAddr,
-					NwkSKey:       deviceSessions[1].NwkSKey,
+					FNwkSIntKey:   deviceSessions[1].FNwkSIntKey,
+					SNwkSIntKey:   deviceSessions[1].SNwkSIntKey,
 					FCnt:          0,
 					ExpectedError: ErrDoesNotExistOrFCntOrMICInvalid,
 				},
 				{
 					Name:          "invalid DevAddr",
 					DevAddr:       lorawan.DevAddr{1, 1, 1, 1},
-					NwkSKey:       deviceSessions[0].NwkSKey,
+					FNwkSIntKey:   deviceSessions[0].FNwkSIntKey,
+					SNwkSIntKey:   deviceSessions[0].SNwkSIntKey,
 					FCnt:          deviceSessions[0].FCntUp,
 					ExpectedError: ErrDoesNotExistOrFCntOrMICInvalid,
 				},
 				{
 					Name:          "invalid NwkSKey",
 					DevAddr:       deviceSessions[0].DevAddr,
-					NwkSKey:       lorawan.AES128Key{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+					FNwkSIntKey:   lorawan.AES128Key{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+					SNwkSIntKey:   lorawan.AES128Key{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 					FCnt:          deviceSessions[0].FCntUp,
 					ExpectedError: ErrDoesNotExistOrFCntOrMICInvalid,
 				},
@@ -270,9 +282,9 @@ func TestGetDeviceSessionForPHYPayload(t *testing.T) {
 							},
 						},
 					}
-					So(phy.SetMIC(test.NwkSKey), ShouldBeNil)
+					So(phy.SetUplinkDataMIC(lorawan.LoRaWAN1_0, 0, 0, 0, test.FNwkSIntKey, test.SNwkSIntKey), ShouldBeNil)
 
-					s, err := GetDeviceSessionForPHYPayload(p, phy)
+					s, err := GetDeviceSessionForPHYPayload(p, phy, 0, 0)
 					if test.ExpectedError != nil {
 						So(err, ShouldNotBeNil)
 						So(err.Error(), ShouldEqual, test.ExpectedError.Error())

@@ -273,10 +273,10 @@ func setRXParameters(ctx *dataContext) error {
 }
 
 func getDataTXInfo(ctx *dataContext) error {
-	if len(ctx.DeviceSession.LastRXInfoSet) == 0 {
+	if len(ctx.RXPacket.RXInfoSet) == 0 {
 		return ErrNoLastRXInfoSet
 	}
-	rxInfo := ctx.DeviceSession.LastRXInfoSet[0]
+	rxInfo := ctx.RXPacket.RXInfoSet[0]
 	var err error
 	ctx.TXInfo, ctx.DataRate, err = getDataDownTXInfoAndDR(ctx.DeviceSession, ctx.RXPacket.TXInfo, rxInfo)
 	if err != nil {
@@ -287,10 +287,10 @@ func getDataTXInfo(ctx *dataContext) error {
 }
 
 func getDataTXInfoForRX2(ctx *dataContext) error {
-	if len(ctx.DeviceSession.LastRXInfoSet) == 0 {
-		return ErrNoLastRXInfoSet
+	mac, err := ctx.DeviceSession.GetDownlinkGatewayMAC()
+	if err != nil {
+		return err
 	}
-	rxInfo := ctx.DeviceSession.LastRXInfoSet[0]
 
 	dr, err := config.C.NetworkServer.Band.Band.GetDataRate(int(ctx.DeviceSession.RX2DR))
 	if err != nil {
@@ -298,7 +298,7 @@ func getDataTXInfoForRX2(ctx *dataContext) error {
 	}
 
 	ctx.TXInfo = gw.TXInfo{
-		MAC:         rxInfo.MAC,
+		MAC:         mac,
 		Immediately: true,
 		Frequency:   ctx.DeviceSession.RX2Frequency,
 		Power:       config.C.NetworkServer.Band.Band.GetDownlinkTXPower(ctx.DeviceSession.RX2Frequency),
@@ -318,10 +318,10 @@ func checkBeaconLocked(ctx *dataContext) error {
 }
 
 func setTXInfoForClassB(ctx *dataContext) error {
-	if len(ctx.DeviceSession.LastRXInfoSet) == 0 {
-		return ErrNoLastRXInfoSet
+	mac, err := ctx.DeviceSession.GetDownlinkGatewayMAC()
+	if err != nil {
+		return err
 	}
-	rxInfo := ctx.DeviceSession.LastRXInfoSet[0]
 
 	dr, err := config.C.NetworkServer.Band.Band.GetDataRate(ctx.DeviceSession.PingSlotDR)
 	if err != nil {
@@ -329,7 +329,7 @@ func setTXInfoForClassB(ctx *dataContext) error {
 	}
 
 	ctx.TXInfo = gw.TXInfo{
-		MAC:       rxInfo.MAC,
+		MAC:       mac,
 		Frequency: ctx.DeviceSession.PingSlotFrequency,
 		Power:     config.C.NetworkServer.Band.Band.GetDownlinkTXPower(ctx.DeviceSession.PingSlotFrequency),
 		DataRate:  dr,
@@ -356,7 +356,7 @@ func setRemainingPayloadSize(ctx *dataContext) error {
 }
 
 func getNextDeviceQueueItem(ctx *dataContext) error {
-	qi, err := storage.GetNextDeviceQueueItemForDevEUIMaxPayloadSizeAndFCnt(config.C.PostgreSQL.DB, ctx.DeviceSession.DevEUI, ctx.RemainingPayloadSize, ctx.DeviceSession.FCntDown, ctx.DeviceSession.RoutingProfileID)
+	qi, err := storage.GetNextDeviceQueueItemForDevEUIMaxPayloadSizeAndFCnt(config.C.PostgreSQL.DB, ctx.DeviceSession.DevEUI, ctx.RemainingPayloadSize, ctx.DeviceSession.NFCntDown, ctx.DeviceSession.RoutingProfileID)
 	if err != nil {
 		if errors.Cause(err) == storage.ErrDoesNotExist {
 			return nil
@@ -379,7 +379,7 @@ func getNextDeviceQueueItem(ctx *dataContext) error {
 	// multiple frames (payload size) or the application-server might have
 	// incremented the counter incorrectly. This is important since it is
 	// used for decrypting the payload by the device!!
-	ctx.DeviceSession.FCntDown = qi.FCnt
+	ctx.DeviceSession.NFCntDown = qi.FCnt
 
 	// Update TXInfo with Class-B scheduling info
 	if ctx.RXPacket == nil && qi.EmitAtTimeSinceGPSEpoch != nil {
@@ -597,7 +597,7 @@ func sendDataDown(ctx *dataContext) error {
 				ACK:      ctx.ACK,
 				FPending: ctx.MoreData,
 			},
-			FCnt: ctx.DeviceSession.FCntDown,
+			FCnt: ctx.DeviceSession.NFCntDown,
 		},
 	}
 
@@ -609,7 +609,7 @@ func sendDataDown(ctx *dataContext) error {
 	}
 
 	var macCommandSize int
-	var maccommands []lorawan.MACCommand
+	var maccommands []lorawan.Payload
 
 	for i := range ctx.MACCommands {
 		s, err := ctx.MACCommands[i].Size()
@@ -618,16 +618,14 @@ func sendDataDown(ctx *dataContext) error {
 		}
 		macCommandSize += s
 
-		maccommands = append(maccommands, ctx.MACCommands[i].MACCommands...)
+		for j := range ctx.MACCommands[i].MACCommands {
+			maccommands = append(maccommands, &ctx.MACCommands[i].MACCommands[j])
+		}
 	}
 
 	if macCommandSize > 15 && ctx.FPort == 0 {
-		var frmPayload []lorawan.Payload
-		for i := range maccommands {
-			frmPayload = append(frmPayload, &maccommands[i])
-		}
 		macPL.FPort = &ctx.FPort
-		macPL.FRMPayload = frmPayload
+		macPL.FRMPayload = maccommands
 	} else if macCommandSize <= 15 {
 		macPL.FHDR.FOpts = maccommands
 	} else {
@@ -649,12 +647,12 @@ func sendDataDown(ctx *dataContext) error {
 	}
 
 	if macCommandSize > 15 && ctx.FPort == 0 {
-		if err := phy.EncryptFRMPayload(ctx.DeviceSession.NwkSKey); err != nil {
+		if err := phy.EncryptFRMPayload(ctx.DeviceSession.NwkSEncKey); err != nil {
 			return errors.Wrap(err, "encrypt frmpayload error")
 		}
 	}
 
-	if err := phy.SetMIC(ctx.DeviceSession.NwkSKey); err != nil {
+	if err := phy.SetDownlinkDataMIC(ctx.DeviceSession.GetMACVersion(), ctx.DeviceSession.FCntUp-1, ctx.DeviceSession.SNwkSIntKey); err != nil {
 		return errors.Wrap(err, "set MIC error")
 	}
 
@@ -670,7 +668,7 @@ func sendDataDown(ctx *dataContext) error {
 	}
 
 	// increment downlink framecounter
-	ctx.DeviceSession.FCntDown++
+	ctx.DeviceSession.NFCntDown++
 
 	// set last downlink tx timestamp
 	ctx.DeviceSession.LastDownlinkTX = time.Now()

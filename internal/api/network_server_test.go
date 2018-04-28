@@ -637,9 +637,11 @@ func TestNetworkServerAPI(t *testing.T) {
 
 							DevAddr:               devAddr,
 							DevEUI:                devEUI,
-							NwkSKey:               nwkSKey,
+							SNwkSIntKey:           nwkSKey,
+							FNwkSIntKey:           nwkSKey,
+							NwkSEncKey:            nwkSKey,
 							FCntUp:                10,
-							FCntDown:              11,
+							NFCntDown:             11,
 							SkipFCntValidation:    true,
 							EnabledUplinkChannels: config.C.NetworkServer.Band.Band.GetEnabledUplinkChannelIndices(),
 							ChannelFrequencies:    []int{868100000, 868300000, 868500000},
@@ -649,12 +651,12 @@ func TestNetworkServerAPI(t *testing.T) {
 							RX2DR:                 5,
 							RX2Frequency:          868900000,
 							MaxSupportedDR:        6,
-
-							LastDevStatusMargin: 127,
-							PingSlotNb:          128,
-							PingSlotDR:          5,
-							PingSlotFrequency:   868100000,
-							NbTrans:             1,
+							UplinkGatewayHistory:  make(map[lorawan.EUI64]storage.UplinkGatewayHistory),
+							LastDevStatusMargin:   127,
+							PingSlotNb:            128,
+							PingSlotDR:            5,
+							PingSlotFrequency:     868100000,
+							NbTrans:               1,
 						})
 					})
 
