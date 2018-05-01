@@ -24,15 +24,12 @@ type uplinkTestCase struct {
 	Name       string                         // name of the test
 	BeforeFunc func(tc *uplinkTestCase) error // function to run before the test
 
-	DeviceSession        storage.DeviceSession     // device-session
-	SetMICKey            lorawan.AES128Key         // key to use for setting the mic
-	EncryptFRMPayloadKey *lorawan.AES128Key        // key to use for encrypting the uplink FRMPayload (e.g. for mac-commands in FRMPayload)
-	DecryptFRMPayloadKey *lorawan.AES128Key        // key for decrypting the downlink FRMPayload (e.g. to validate FRMPayload mac-commands)
-	RXInfo               gw.RXInfo                 // rx-info of the "received" packet
-	PHYPayload           lorawan.PHYPayload        // (unencrypted) "received" PHYPayload
-	MACCommandPending    []storage.MACCommandBlock // pending mac-commands
-	DeviceQueueItems     []storage.DeviceQueueItem // items in the device-queue
-	ASHandleDataUpError  error                     // application-client publish data-up error
+	DeviceSession       storage.DeviceSession     // device-session
+	RXInfo              gw.RXInfo                 // rx-info of the "received" packet
+	PHYPayload          lorawan.PHYPayload        // (unencrypted) "received" PHYPayload
+	MACCommandPending   []storage.MACCommandBlock // pending mac-commands
+	DeviceQueueItems    []storage.DeviceQueueItem // items in the device-queue
+	ASHandleDataUpError error                     // application-client publish data-up error
 
 	ExpectedControllerHandleRXInfo            *nc.HandleRXInfoRequest            // expected network-controller publish rxinfo request
 	ExpectedControllerHandleDataUpMACCommands []nc.HandleDataUpMACCommandRequest // expected network-controller publish dataup mac-command requests
@@ -41,6 +38,7 @@ type uplinkTestCase struct {
 	ExpectedASHandleErrors      []as.HandleErrorRequest      // expected application-server error requests
 	ExpectedASHandleDownlinkACK *as.HandleDownlinkACKRequest // expected application-server datadown ack request
 
+	ExpectedUplinkMIC           lorawan.MIC
 	ExpectedTXInfo              *gw.TXInfo          // expected tx-info (downlink)
 	ExpectedPHYPayload          *lorawan.PHYPayload // expected (plaintext) PHYPayload (downlink)
 	ExpectedFCntUp              uint32              // expected uplink frame counter
@@ -122,6 +120,7 @@ func TestUplinkScenarios(t *testing.T) {
 
 		// device-session
 		ds := storage.DeviceSession{
+			MACVersion:       "1.0.2",
 			DeviceProfileID:  d.DeviceProfileID,
 			ServiceProfileID: d.ServiceProfileID,
 			RoutingProfileID: d.RoutingProfileID,
@@ -214,7 +213,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "the frame-counter is invalid",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -228,16 +226,23 @@ func TestUplinkScenarios(t *testing.T) {
 							FPort: &fPortOne,
 						},
 					},
+					ExpectedUplinkMIC:           lorawan.MIC{48, 94, 26, 239},
 					ExpectedFCntUp:              8,
 					ExpectedFCntDown:            5,
 					ExpectedHandleRXPacketError: errors.New("get device-session error: device-session does not exist or invalid fcnt or mic"),
 					ExpectedEnabledChannels:     []int{0, 1, 2},
 				},
 				{
-					Name:          "the mic is invalid",
+					BeforeFunc: func(tc *uplinkTestCase) error {
+						tc.DeviceSession.MACVersion = "1.1.0"
+
+						// the MIC will be calculated for channel 0, we set it to channel 1
+						tc.RXInfo.Frequency = 868300000
+						return nil
+					},
+					Name:          "the frequency is invalid (MIC)",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     [16]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -251,6 +256,42 @@ func TestUplinkScenarios(t *testing.T) {
 							FPort: &fPortOne,
 						},
 					},
+					ExpectedUplinkMIC:           lorawan.MIC{160, 195, 160, 195},
+					ExpectedFCntUp:              8,
+					ExpectedFCntDown:            5,
+					ExpectedHandleRXPacketError: errors.New("get device-session error: device-session does not exist or invalid fcnt or mic"),
+					ExpectedEnabledChannels:     []int{0, 1, 2},
+				},
+				{
+					BeforeFunc: func(tc *uplinkTestCase) error {
+						tc.DeviceSession.MACVersion = "1.1.0"
+
+						dr, err := config.C.NetworkServer.Band.Band.GetDataRate(1)
+						if err != nil {
+							return err
+						}
+
+						// the MIC will be calculated for DR0, set it to DR1
+						tc.RXInfo.DataRate = dr
+						return nil
+					},
+					Name:          "the data-rate is invalid (MIC)",
+					DeviceSession: ds,
+					RXInfo:        rxInfo,
+					PHYPayload: lorawan.PHYPayload{
+						MHDR: lorawan.MHDR{
+							MType: lorawan.UnconfirmedDataUp,
+							Major: lorawan.LoRaWANR1,
+						},
+						MACPayload: &lorawan.MACPayload{
+							FHDR: lorawan.FHDR{
+								DevAddr: ds.DevAddr,
+								FCnt:    10,
+							},
+							FPort: &fPortOne,
+						},
+					},
+					ExpectedUplinkMIC:           lorawan.MIC{160, 195, 160, 195},
 					ExpectedFCntUp:              8,
 					ExpectedFCntDown:            5,
 					ExpectedHandleRXPacketError: errors.New("get device-session error: device-session does not exist or invalid fcnt or mic"),
@@ -334,7 +375,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "the frame-counter is invalid but not 0",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -348,6 +388,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FPort: &fPortOne,
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{48, 94, 26, 239},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData7,
 					ExpectedFCntUp:                 8,
@@ -363,7 +404,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "the frame-counter is invalid and 0",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -377,6 +417,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FPort: &fPortOne,
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{131, 36, 83, 163},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedFCntUp:                 1,
@@ -403,7 +444,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "unconfirmed uplink data with payload",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -418,6 +458,39 @@ func TestUplinkScenarios(t *testing.T) {
 							FRMPayload: []lorawan.Payload{&lorawan.DataPayload{Bytes: []byte{1, 2, 3, 4}}},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{104, 147, 35, 121},
+					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
+					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
+					ExpectedFCntUp:                 11,
+					ExpectedFCntDown:               5,
+					ExpectedEnabledChannels:        []int{0, 1, 2},
+				},
+				{
+					BeforeFunc: func(tc *uplinkTestCase) error {
+						tc.ExpectedASHandleDataUp.Data = []byte{1, 2, 3, 4}
+						tc.DeviceSession.MACVersion = "1.1.0"
+
+						return nil
+					},
+
+					Name:          "unconfirmed uplink data with payload (LoRaWAN 1.1)",
+					DeviceSession: ds,
+					RXInfo:        rxInfo,
+					PHYPayload: lorawan.PHYPayload{
+						MHDR: lorawan.MHDR{
+							MType: lorawan.UnconfirmedDataUp,
+							Major: lorawan.LoRaWANR1,
+						},
+						MACPayload: &lorawan.MACPayload{
+							FHDR: lorawan.FHDR{
+								DevAddr: ds.DevAddr,
+								FCnt:    10,
+							},
+							FPort:      &fPortOne,
+							FRMPayload: []lorawan.Payload{&lorawan.DataPayload{Bytes: []byte{1, 2, 3, 4}}},
+						},
+					},
+					ExpectedUplinkMIC:              lorawan.MIC{104, 147, 104, 147},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedFCntUp:                 11,
@@ -436,7 +509,6 @@ func TestUplinkScenarios(t *testing.T) {
 					},
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -454,6 +526,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FRMPayload: []lorawan.Payload{&lorawan.DataPayload{Bytes: []byte{1, 2, 3, 4}}},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{132, 250, 228, 10},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedASHandleDownlinkACK:    &as.HandleDownlinkACKRequest{DevEUI: d.DevEUI[:], FCnt: 4, Acknowledged: true},
@@ -465,7 +538,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "unconfirmed uplink data without payload (just a FPort)",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -479,6 +551,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FPort: &fPortOne,
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{160, 195, 68, 8},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedFCntUp:                 11,
@@ -494,7 +567,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "confirmed uplink data with payload",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.ConfirmedDataUp,
@@ -509,6 +581,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FRMPayload: []lorawan.Payload{&lorawan.DataPayload{Bytes: []byte{1, 2, 3, 4}}},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{69, 90, 200, 95},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedTXInfo: &gw.TXInfo{
@@ -543,7 +616,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "confirmed uplink data without payload",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.ConfirmedDataUp,
@@ -557,6 +629,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FPort: &fPortOne,
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{210, 52, 52, 94},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedTXInfo: &gw.TXInfo{
@@ -596,7 +669,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "confirmed uplink data without payload (with RXDelay=3)",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.ConfirmedDataUp,
@@ -610,6 +682,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FPort: &fPortOne,
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{210, 52, 52, 94},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedTXInfo: &gw.TXInfo{
@@ -644,7 +717,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "two uplink mac commands (FOpts)",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -661,6 +733,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{218, 0, 109, 32},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedControllerHandleDataUpMACCommands: []nc.HandleDataUpMACCommandRequest{
 						{DevEUI: ds.DevEUI[:], Cid: 128, Commands: [][]byte{{128, 1, 2, 3}}},
@@ -671,11 +744,9 @@ func TestUplinkScenarios(t *testing.T) {
 					ExpectedEnabledChannels: []int{0, 1, 2},
 				},
 				{
-					Name:                 "two uplink mac commands (FRMPayload)",
-					DeviceSession:        ds,
-					RXInfo:               rxInfo,
-					EncryptFRMPayloadKey: &ds.NwkSEncKey,
-					SetMICKey:            ds.NwkSEncKey,
+					Name:          "two uplink mac commands (FRMPayload)",
+					DeviceSession: ds,
+					RXInfo:        rxInfo,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -693,6 +764,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{161, 39, 115, 252},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedControllerHandleDataUpMACCommands: []nc.HandleDataUpMACCommandRequest{
 						{DevEUI: ds.DevEUI[:], Cid: 128, Commands: [][]byte{{128, 1, 2, 3}}},
@@ -714,7 +786,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "unconfirmed uplink with FCnt rollover",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -729,6 +800,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FRMPayload: []lorawan.Payload{&lorawan.DataPayload{Bytes: []byte{1, 2, 3, 4}}},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{46, 116, 250, 252},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedFCntUp:                 65537,
@@ -750,7 +822,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "unconfirmed uplink data with payload (service-profile: no gateway info)",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -765,6 +836,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FRMPayload: []lorawan.Payload{&lorawan.DataPayload{Bytes: []byte{1, 2, 3, 4}}},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{104, 147, 35, 121},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedFCntUp:                 11,
@@ -793,7 +865,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "unconfirmed uplink data + two downlink mac commands in queue (FOpts)",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -808,6 +879,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FRMPayload: []lorawan.Payload{&lorawan.DataPayload{Bytes: []byte{1, 2, 3, 4}}},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{104, 147, 35, 121},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedTXInfo: &gw.TXInfo{
@@ -852,7 +924,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "unconfirmed uplink data + downlink mac command (FOpts) + unconfirmed data down",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					DeviceQueueItems: []storage.DeviceQueueItem{
 						{DevEUI: d.DevEUI, FPort: 3, FCnt: 5, FRMPayload: []byte{4, 5, 6}},
 					},
@@ -870,6 +941,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FRMPayload: []lorawan.Payload{&lorawan.DataPayload{Bytes: []byte{1, 2, 3, 4}}},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{104, 147, 35, 121},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedTXInfo: &gw.TXInfo{
@@ -920,7 +992,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "unconfirmed uplink data + one unconfirmed downlink payload in queue",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					DeviceQueueItems: []storage.DeviceQueueItem{
 						{DevEUI: d.DevEUI, FPort: 10, FCnt: 5, FRMPayload: []byte{1, 2, 3, 4}},
 					},
@@ -937,6 +1008,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FPort: &fPortOne,
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{160, 195, 68, 8},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedTXInfo: &gw.TXInfo{
@@ -974,7 +1046,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "unconfirmed uplink data + two unconfirmed downlink payloads in queue",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					DeviceQueueItems: []storage.DeviceQueueItem{
 						{DevEUI: d.DevEUI, FPort: 10, FCnt: 5, FRMPayload: []byte{1, 2, 3, 4}},
 						{DevEUI: d.DevEUI, FPort: 10, FCnt: 6, FRMPayload: []byte{5, 6, 7, 8}},
@@ -992,6 +1063,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FPort: &fPortOne,
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{160, 195, 68, 8},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedTXInfo: &gw.TXInfo{
@@ -1030,7 +1102,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "unconfirmed uplink data + one confirmed downlink payload in queue",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					DeviceQueueItems: []storage.DeviceQueueItem{
 						{DevEUI: d.DevEUI, FPort: 10, FCnt: 5, FRMPayload: []byte{1, 2, 3, 4}, Confirmed: true},
 					},
@@ -1047,6 +1118,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FPort: &fPortOne,
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{160, 195, 68, 8},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedTXInfo: &gw.TXInfo{
@@ -1084,7 +1156,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "unconfirmed uplink data + downlink payload which exceeds the max payload size (for dr 0)",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					DeviceQueueItems: []storage.DeviceQueueItem{
 						{DevEUI: d.DevEUI, FPort: 10, FCnt: 5, FRMPayload: make([]byte, 52)},
 					},
@@ -1101,6 +1172,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FPort: &fPortOne,
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{160, 195, 68, 8},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedFCntUp:                 11,
@@ -1119,7 +1191,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "unconfirmed uplink data + one unconfirmed downlink payload in queue (exactly max size for dr 0) + one mac command",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					DeviceQueueItems: []storage.DeviceQueueItem{
 						{DevEUI: d.DevEUI, FPort: 10, FCnt: 5, FRMPayload: make([]byte, 51)},
 					},
@@ -1136,7 +1207,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FPort: &fPortOne,
 						},
 					},
-
+					ExpectedUplinkMIC:              lorawan.MIC{160, 195, 68, 8},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedTXInfo: &gw.TXInfo{
@@ -1191,7 +1262,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "adr triggered",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -1207,6 +1277,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{187, 243, 244, 117},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedFCntUp:                 11,
 					ExpectedFCntDown:               6,
@@ -1258,7 +1329,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "adr interval matches, but node does not support adr",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -1274,6 +1344,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{122, 152, 152, 220},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedFCntUp:                 11,
 					ExpectedFCntDown:               5,
@@ -1288,7 +1359,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "acknowledgement of pending adr request",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					MACCommandPending: []storage.MACCommandBlock{
 						{
 							CID: lorawan.LinkADRReq,
@@ -1323,6 +1393,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{235, 224, 96, 3},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedFCntUp:                 11,
 					ExpectedFCntDown:               5,
@@ -1339,7 +1410,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "negative acknowledgement of pending adr request",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					MACCommandPending: []storage.MACCommandBlock{
 						{
 							CID: lorawan.LinkADRReq,
@@ -1374,6 +1444,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{252, 17, 226, 74},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedFCntUp:                 11,
 					ExpectedFCntDown:               5,
@@ -1383,7 +1454,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "adr ack requested",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -1399,6 +1469,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{73, 26, 32, 42},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedFCntUp:                 11,
 					ExpectedFCntDown:               6,
@@ -1436,7 +1507,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "channel re-configuration triggered",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -1449,6 +1519,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{122, 152, 152, 220},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedFCntUp:                 11,
 					ExpectedFCntDown:               6,
@@ -1495,7 +1566,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "new channel re-configuration ack-ed",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					MACCommandPending: []storage.MACCommandBlock{
 						{
 							CID: lorawan.LinkADRReq,
@@ -1532,6 +1602,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{235, 224, 96, 3},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedFCntUp:                 11,
 					ExpectedFCntDown:               5,
@@ -1547,7 +1618,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "new channel re-configuration not ack-ed",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					MACCommandPending: []storage.MACCommandBlock{
 						{
 							CID: lorawan.LinkADRReq,
@@ -1584,6 +1654,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{252, 17, 226, 74},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedFCntUp:                 11,
 					ExpectedFCntDown:               6,
@@ -1633,7 +1704,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "channel re-configuration and adr triggered",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -1649,6 +1719,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{187, 243, 244, 117},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedFCntUp:                 11,
 					ExpectedFCntDown:               6,
@@ -1713,7 +1784,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "must request device-status",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -1726,7 +1796,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
-
+					ExpectedUplinkMIC:              lorawan.MIC{122, 152, 152, 220},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedFCntUp:                 11,
 					ExpectedFCntDown:               6,
@@ -1769,7 +1839,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "interval has not yet expired",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -1782,7 +1851,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
-
+					ExpectedUplinkMIC:              lorawan.MIC{122, 152, 152, 220},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedFCntUp:                 11,
 					ExpectedFCntDown:               5,
@@ -1800,7 +1869,6 @@ func TestUplinkScenarios(t *testing.T) {
 					Name:          "device reports device-status",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,
-					SetMICKey:     ds.NwkSEncKey,
 					PHYPayload: lorawan.PHYPayload{
 						MHDR: lorawan.MHDR{
 							MType: lorawan.UnconfirmedDataUp,
@@ -1824,6 +1892,7 @@ func TestUplinkScenarios(t *testing.T) {
 							FRMPayload: []lorawan.Payload{&lorawan.DataPayload{Bytes: []byte{1, 2, 3, 4}}},
 						},
 					},
+					ExpectedUplinkMIC:              lorawan.MIC{30, 172, 57, 148},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedASHandleDataUp:         expectedApplicationPushDataUpNoData,
 					ExpectedFCntUp:                 11,
@@ -1861,11 +1930,20 @@ func runUplinkTests(asClient *test.ApplicationClient, tests []uplinkTestCase) {
 			// update global config to avoid triggering mac-commands
 			config.C.NetworkServer.NetworkSettings.RX1Delay = int(t.DeviceSession.RXDelay)
 
-			// encrypt FRMPayload and set MIC
-			if t.EncryptFRMPayloadKey != nil {
-				So(t.PHYPayload.EncryptFRMPayload(*t.EncryptFRMPayloadKey), ShouldBeNil)
+			macPL, ok := t.PHYPayload.MACPayload.(*lorawan.MACPayload)
+			if ok {
+				if macPL.FPort != nil && *macPL.FPort == 0 {
+					So(t.PHYPayload.EncryptFRMPayload(t.DeviceSession.NwkSEncKey), ShouldBeNil)
+				}
 			}
-			So(t.PHYPayload.SetUplinkDataMIC(lorawan.LoRaWAN1_0, 0, 0, 0, t.SetMICKey, t.SetMICKey), ShouldBeNil)
+
+			if t.DeviceSession.GetMACVersion() != lorawan.LoRaWAN1_0 {
+				So(t.PHYPayload.EncryptFOpts(t.DeviceSession.NwkSEncKey), ShouldBeNil)
+			}
+
+			So(t.PHYPayload.SetUplinkDataMIC(t.DeviceSession.GetMACVersion(), t.DeviceSession.AFCntDown, 0, 0, t.DeviceSession.FNwkSIntKey, t.DeviceSession.SNwkSIntKey), ShouldBeNil)
+
+			So(t.PHYPayload.MIC[:], ShouldResemble, t.ExpectedUplinkMIC[:])
 
 			// marshal and unmarshal the PHYPayload to make sure the FCnt gets
 			// truncated to to 16 bit
@@ -1945,9 +2023,13 @@ func runUplinkTests(asClient *test.ApplicationClient, tests []uplinkTestCase) {
 					So(&txPacket.TXInfo, ShouldResemble, t.ExpectedTXInfo)
 
 					if t.ExpectedPHYPayload != nil {
-						if t.DecryptFRMPayloadKey != nil {
-							So(txPacket.PHYPayload.DecryptFRMPayload(*t.DecryptFRMPayloadKey), ShouldBeNil)
+						macPL, ok := txPacket.PHYPayload.MACPayload.(*lorawan.MACPayload)
+						if ok {
+							if macPL.FPort != nil && *macPL.FPort == 0 {
+								So(txPacket.PHYPayload.DecryptFRMPayload(t.DeviceSession.NwkSEncKey), ShouldBeNil)
+							}
 						}
+
 						t.ExpectedPHYPayload.MIC = txPacket.PHYPayload.MIC
 						So(&txPacket.PHYPayload, ShouldResemble, t.ExpectedPHYPayload)
 					}

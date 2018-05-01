@@ -81,8 +81,33 @@ func setContextFromDataPHYPayload(ctx *dataContext) error {
 }
 
 func getDeviceSessionForPHYPayload(ctx *dataContext) error {
-	// TODO: add txDR and txCh!!!
-	ds, err := storage.GetDeviceSessionForPHYPayload(config.C.Redis.Pool, ctx.RXPacket.PHYPayload, 0, 0)
+	txDR, err := config.C.NetworkServer.Band.Band.GetDataRateIndex(true, ctx.RXPacket.TXInfo.DataRate)
+	if err != nil {
+		return errors.Wrap(err, "get data-rate index error")
+	}
+
+	var txCh int
+	for _, defaultChannel := range []bool{true, false} {
+		i, err := config.C.NetworkServer.Band.Band.GetUplinkChannelIndex(ctx.RXPacket.TXInfo.Frequency, defaultChannel)
+		if err != nil {
+			continue
+		}
+
+		c, err := config.C.NetworkServer.Band.Band.GetUplinkChannel(i)
+		if err != nil {
+			return errors.Wrap(err, "get channel error")
+		}
+
+		// there could be multiple channels using the same frequency, but with different data-rates.
+		// eg EU868:
+		//  channel 1 (868.3 DR 0-5)
+		//  channel x (868.3 DR 6)
+		if c.MinDR >= txDR && c.MaxDR >= txDR {
+			txCh = i
+		}
+	}
+
+	ds, err := storage.GetDeviceSessionForPHYPayload(config.C.Redis.Pool, ctx.RXPacket.PHYPayload, txDR, txCh)
 	if err != nil {
 		return errors.Wrap(err, "get device-session error")
 	}
