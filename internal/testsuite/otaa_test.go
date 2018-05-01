@@ -65,6 +65,7 @@ func TestOTAAScenarios(t *testing.T) {
 
 		dp := storage.DeviceProfile{
 			DeviceProfile: backend.DeviceProfile{
+				MACVersion:  "1.0.2",
 				RXDelay1:    3,
 				RXDROffset1: 1,
 				RXDataRate2: 5,
@@ -166,7 +167,7 @@ func TestOTAAScenarios(t *testing.T) {
 					ExpectedError: errors.New("validate dev-nonce error: object already exists"),
 				},
 				{
-					Name:       "join-request accepted using rx1 (NwkSKey)",
+					Name:       "join-request accepted using (NwkSKey)",
 					RXInfo:     rxInfo,
 					PHYPayload: jrPayload,
 					AppKey:     appKey,
@@ -214,6 +215,7 @@ func TestOTAAScenarios(t *testing.T) {
 					},
 					ExpectedPHYPayload: jaPHY,
 					ExpectedDeviceSession: storage.DeviceSession{
+						MACVersion:            "1.0.2",
 						RoutingProfileID:      rp.RoutingProfile.RoutingProfileID,
 						DeviceProfileID:       dp.DeviceProfile.DeviceProfileID,
 						ServiceProfileID:      sp.ServiceProfile.ServiceProfileID,
@@ -232,7 +234,11 @@ func TestOTAAScenarios(t *testing.T) {
 					},
 				},
 				{
-					Name:       "join-request accepted using rx1 (SNwkSIntKey, FNwkSIntKey, NwkSEncKey)",
+					BeforeFunc: func(tc *otaaTestCase) error {
+						dp.MACVersion = "1.1.0"
+						return storage.UpdateDeviceProfile(db, &dp)
+					},
+					Name:       "join-request accepted (SNwkSIntKey, FNwkSIntKey, NwkSEncKey)",
 					RXInfo:     rxInfo,
 					PHYPayload: jrPayload,
 					AppKey:     appKey,
@@ -267,10 +273,11 @@ func TestOTAAScenarios(t *testing.T) {
 							ReceiverID:      "0102030405060708",
 							MessageType:     backend.JoinReq,
 						},
-						MACVersion: dp.DeviceProfile.MACVersion,
+						MACVersion: "1.1.0",
 						PHYPayload: backend.HEXBytes(jrBytes),
 						DevEUI:     d.DevEUI,
 						DLSettings: lorawan.DLSettings{
+							OptNeg:      true,
 							RX2DataRate: uint8(config.C.NetworkServer.NetworkSettings.RX2DR),
 							RX1DROffset: uint8(config.C.NetworkServer.NetworkSettings.RX1DROffset),
 						},
@@ -286,6 +293,7 @@ func TestOTAAScenarios(t *testing.T) {
 					},
 					ExpectedPHYPayload: jaPHY,
 					ExpectedDeviceSession: storage.DeviceSession{
+						MACVersion:            "1.1.0",
 						RoutingProfileID:      rp.RoutingProfile.RoutingProfileID,
 						DeviceProfileID:       dp.DeviceProfile.DeviceProfileID,
 						ServiceProfileID:      sp.ServiceProfile.ServiceProfileID,
@@ -347,6 +355,7 @@ func TestOTAAScenarios(t *testing.T) {
 					},
 					ExpectedPHYPayload: jaPHY,
 					ExpectedDeviceSession: storage.DeviceSession{
+						MACVersion:            "1.0.2",
 						RoutingProfileID:      rp.RoutingProfile.RoutingProfileID,
 						DeviceProfileID:       dp.DeviceProfile.DeviceProfileID,
 						ServiceProfileID:      sp.ServiceProfile.ServiceProfileID,
@@ -416,6 +425,7 @@ func TestOTAAScenarios(t *testing.T) {
 					},
 					ExpectedPHYPayload: jaPHY,
 					ExpectedDeviceSession: storage.DeviceSession{
+						MACVersion:            "1.0.2",
 						RoutingProfileID:      rp.RoutingProfile.RoutingProfileID,
 						DeviceProfileID:       dp.DeviceProfile.DeviceProfileID,
 						ServiceProfileID:      sp.ServiceProfile.ServiceProfileID,

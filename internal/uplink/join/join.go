@@ -147,6 +147,11 @@ func getJoinAcceptFromAS(ctx *context) error {
 	}
 	transactionID := binary.LittleEndian.Uint32(randomBytes)
 
+	// note about the OptNeg field:
+	// it must only be set to true for devices != 1.0.x as it will indicate to
+	// the join-server and device how to derrive the session-keys and how to
+	// sign the join-accept message
+
 	joinReqPL := backend.JoinReqPayload{
 		BasePayload: backend.BasePayload{
 			ProtocolVersion: backend.ProtocolVersion1_0,
@@ -160,6 +165,7 @@ func getJoinAcceptFromAS(ctx *context) error {
 		DevEUI:     ctx.JoinRequestPayload.DevEUI,
 		DevAddr:    ctx.DevAddr,
 		DLSettings: lorawan.DLSettings{
+			OptNeg:      !strings.HasPrefix(ctx.DeviceProfile.MACVersion, "1.0"), // must be set to true for != "1.0" devices
 			RX2DataRate: uint8(config.C.NetworkServer.NetworkSettings.RX2DR),
 			RX1DROffset: uint8(config.C.NetworkServer.NetworkSettings.RX1DROffset),
 		},
@@ -193,6 +199,7 @@ func createNodeSession(ctx *context) error {
 		ServiceProfileID: ctx.Device.ServiceProfileID,
 		RoutingProfileID: ctx.Device.RoutingProfileID,
 
+		MACVersion:            ctx.DeviceProfile.MACVersion,
 		DevAddr:               ctx.DevAddr,
 		JoinEUI:               ctx.JoinRequestPayload.JoinEUI,
 		DevEUI:                ctx.JoinRequestPayload.DevEUI,

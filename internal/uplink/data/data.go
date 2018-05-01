@@ -25,6 +25,8 @@ const applicationClientTimeout = time.Second
 var tasks = []func(*dataContext) error{
 	setContextFromDataPHYPayload,
 	getDeviceSessionForPHYPayload,
+	decryptFOptsMACCommands,
+	decryptFRMPayloadMACCommands,
 	logUplinkFrame,
 	getDeviceProfile,
 	getServiceProfile,
@@ -32,8 +34,6 @@ var tasks = []func(*dataContext) error{
 	setUplinkDataRate,
 	appendMetaDataToUplinkHistory,
 	getApplicationServerClientForDataUp,
-	decryptFOptsMACCommands,
-	decryptFRMPayloadMACCommands,
 	setBeaconLocked,
 	sendRXInfoToNetworkController,
 	handleFOptsMACCommands,
