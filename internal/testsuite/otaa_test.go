@@ -308,6 +308,7 @@ func TestOTAAScenarios(t *testing.T) {
 						UplinkGatewayHistory:  map[lorawan.EUI64]storage.UplinkGatewayHistory{},
 						LastDevStatusMargin:   127,
 						RX2Frequency:          config.C.NetworkServer.Band.Band.GetDefaults().RX2Frequency,
+						NbTrans:               1,
 					},
 				},
 				{
