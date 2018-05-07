@@ -29,6 +29,8 @@ func Handle(ds *storage.DeviceSession, block storage.MACCommandBlock, pending *s
 		return handleRXParamSetupAns(ds, block, pending)
 	case lorawan.RXTimingSetupAns:
 		return handleRXTimingSetupAns(ds, block, pending)
+	case lorawan.RekeyInd:
+		return handleRekeyInd(ds, block)
 	default:
 		return nil, fmt.Errorf("undefined CID %d", block.CID)
 	}
