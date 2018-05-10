@@ -566,11 +566,6 @@ func (n *NetworkServerAPI) ActivateDevice(ctx context.Context, req *ns.ActivateD
 		return nil, errToRPCError(err)
 	}
 
-	var channelFrequencies []int
-	for _, f := range dp.FactoryPresetFreqs {
-		channelFrequencies = append(channelFrequencies, int(f))
-	}
-
 	ds := storage.DeviceSession{
 		DeviceProfileID:  d.DeviceProfileID,
 		ServiceProfileID: d.ServiceProfileID,
@@ -587,25 +582,14 @@ func (n *NetworkServerAPI) ActivateDevice(ctx context.Context, req *ns.ActivateD
 		SkipFCntValidation: req.SkipFCntCheck || d.SkipFCntCheck,
 
 		RXWindow:       storage.RX1,
-		RXDelay:        uint8(dp.RXDelay1),
-		RX1DROffset:    uint8(dp.RXDROffset1),
-		RX2DR:          uint8(dp.RXDataRate2),
-		RX2Frequency:   int(dp.RXFreq2),
 		MaxSupportedDR: sp.ServiceProfile.DRMax,
-
-		EnabledUplinkChannels: config.C.NetworkServer.Band.Band.GetStandardUplinkChannelIndices(), // TODO: replace by ServiceProfile.ChannelMask?
-		ChannelFrequencies:    channelFrequencies,
 
 		// set to invalid value to indicate we haven't received a status yet
 		LastDevStatusMargin: 127,
-		PingSlotDR:          dp.PingSlotDR,
-		PingSlotFrequency:   int(dp.PingSlotFreq),
-		NbTrans:             1,
 	}
 
-	if dp.PingSlotPeriod != 0 {
-		ds.PingSlotNb = (1 << 12) / dp.PingSlotPeriod
-	}
+	// reset the device-session to the device boot parameters
+	ds.ResetToBootParameters(dp)
 
 	if err := storage.SaveDeviceSession(config.C.Redis.Pool, ds); err != nil {
 		return nil, errToRPCError(err)

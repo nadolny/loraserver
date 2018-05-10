@@ -3,25 +3,22 @@ package maccommand
 import (
 	"fmt"
 
+	"github.com/brocaar/loraserver/internal/storage"
 	"github.com/brocaar/lorawan"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/brocaar/loraserver/internal/storage"
 )
 
-const servLoRaWANVersionMinor uint8 = 1
-
-func handleRekeyInd(ds *storage.DeviceSession, block storage.MACCommandBlock) ([]storage.MACCommandBlock, error) {
+func handleResetInd(ds *storage.DeviceSession, block storage.MACCommandBlock) ([]storage.MACCommandBlock, error) {
 	if len(block.MACCommands) != 1 {
 		return nil, fmt.Errorf("exactly one mac-command expected, got %d", len(block.MACCommands))
 	}
 
-	pl, ok := block.MACCommands[0].Payload.(*lorawan.RekeyIndPayload)
+	pl, ok := block.MACCommands[0].Payload.(*lorawan.ResetIndPayload)
 	if !ok {
-		return nil, fmt.Errorf("expected *lorawan.RekeyIndPayload, got %T", block.MACCommands[0].Payload)
+		return nil, fmt.Errorf("expected *lorawan.ResetIndPayload, got %T", block.MACCommands[0].Payload)
 	}
 
-	respPL := lorawan.RekeyConfPayload{
+	respPL := lorawan.ResetConfPayload{
 		ServLoRaWANVersion: lorawan.Version{
 			Minor: servLoRaWANVersionMinor,
 		},
@@ -35,14 +32,14 @@ func handleRekeyInd(ds *storage.DeviceSession, block storage.MACCommandBlock) ([
 		"dev_eui":                    ds.DevEUI,
 		"dev_lorawan_version_minor":  pl.DevLoRaWANVersion.Minor,
 		"serv_lorawan_version_minor": servLoRaWANVersionMinor,
-	}).Info("rekey_ind received")
+	}).Info("reset_ind received")
 
 	return []storage.MACCommandBlock{
 		{
-			CID: lorawan.RekeyConf,
+			CID: lorawan.ResetConf,
 			MACCommands: storage.MACCommands{
 				{
-					CID:     lorawan.RekeyConf,
+					CID:     lorawan.ResetConf,
 					Payload: &respPL,
 				},
 			},

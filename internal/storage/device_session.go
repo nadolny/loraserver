@@ -189,6 +189,37 @@ func (s DeviceSession) GetMACVersion() lorawan.MACVersion {
 	return lorawan.LoRaWAN1_0
 }
 
+// ResetToBootParameters resets the device-session to the device boo
+// parameters as defined by the given device-profile.
+func (s *DeviceSession) ResetToBootParameters(dp DeviceProfile) {
+	if dp.SupportsJoin {
+		return
+	}
+
+	var channelFrequencies []int
+	for _, f := range dp.FactoryPresetFreqs {
+		channelFrequencies = append(channelFrequencies, int(f))
+	}
+
+	s.TXPowerIndex = 0
+	s.MinSupportedTXPowerIndex = 0
+	s.MaxSupportedTXPowerIndex = 0
+	s.ExtraUplinkChannels = make(map[int]band.Channel)
+	s.RXDelay = uint8(dp.RXDelay1)
+	s.RX1DROffset = uint8(dp.RXDROffset1)
+	s.RX2DR = uint8(dp.RXDataRate2)
+	s.RX2Frequency = int(dp.RXFreq2)
+	s.EnabledUplinkChannels = config.C.NetworkServer.Band.Band.GetStandardUplinkChannelIndices() // TODO: replace by ServiceProfile.ChannelMask?
+	s.ChannelFrequencies = channelFrequencies
+	s.PingSlotDR = dp.PingSlotDR
+	s.PingSlotFrequency = int(dp.PingSlotFreq)
+	s.NbTrans = 1
+
+	if dp.PingSlotPeriod != 0 {
+		s.PingSlotNb = (1 << 12) / dp.PingSlotPeriod
+	}
+}
+
 // GetDownlinkGatewayMAC returns the gateway MAC of the gateway close to the
 // device.
 func (s DeviceSession) GetDownlinkGatewayMAC() (lorawan.EUI64, error) {
