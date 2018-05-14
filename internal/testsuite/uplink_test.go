@@ -744,6 +744,42 @@ func TestUplinkScenarios(t *testing.T) {
 					ExpectedEnabledChannels: []int{0, 1, 2},
 				},
 				{
+					BeforeFunc: func(tc *uplinkTestCase) error {
+						tc.DeviceSession.MACVersion = "1.1.0"
+						return nil
+
+					},
+					Name:          "two uplink mac commands (FOpts) (LoRaWAN 1.1)",
+					DeviceSession: ds,
+					RXInfo:        rxInfo,
+					PHYPayload: lorawan.PHYPayload{
+						MHDR: lorawan.MHDR{
+							MType: lorawan.UnconfirmedDataUp,
+							Major: lorawan.LoRaWANR1,
+						},
+						MACPayload: &lorawan.MACPayload{
+							FHDR: lorawan.FHDR{
+								DevAddr: ds.DevAddr,
+								FCnt:    10,
+								FOpts: []lorawan.Payload{
+									&lorawan.DataPayload{Bytes: []byte{}},
+									&lorawan.MACCommand{CID: 0x80, Payload: &lorawan.ProprietaryMACCommandPayload{Bytes: []byte{1, 2, 3}}},
+									&lorawan.MACCommand{CID: 0x81, Payload: &lorawan.ProprietaryMACCommandPayload{Bytes: []byte{4, 5}}},
+								},
+							},
+						},
+					},
+					ExpectedUplinkMIC:              lorawan.MIC{238, 115, 238, 115},
+					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
+					ExpectedControllerHandleDataUpMACCommands: []nc.HandleDataUpMACCommandRequest{
+						{DevEUI: ds.DevEUI[:], Cid: 128, Commands: [][]byte{{128, 1, 2, 3}}},
+						{DevEUI: ds.DevEUI[:], Cid: 129, Commands: [][]byte{{129, 4, 5}}},
+					},
+					ExpectedFCntUp:          11,
+					ExpectedFCntDown:        5,
+					ExpectedEnabledChannels: []int{0, 1, 2},
+				},
+				{
 					Name:          "two uplink mac commands (FRMPayload)",
 					DeviceSession: ds,
 					RXInfo:        rxInfo,

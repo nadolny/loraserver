@@ -58,9 +58,14 @@ var responseTasks = []func(*dataContext) error{
 	getNextDeviceQueueItem,
 	setMACCommandsSet,
 	stopOnNothingToSend,
+	setPHYPayload,
+	encryptMACCommands,
+	setMIC,
 	sendDataDown,
 	saveDeviceSession,
-	logDownlinkFrame,
+	logDownlinkFrameForGateway,
+	decryptMACCommands,
+	logDownlinkFrameForDevice,
 }
 
 var scheduleNextQueueItemTasks = []func(*dataContext) error{
@@ -79,9 +84,14 @@ var scheduleNextQueueItemTasks = []func(*dataContext) error{
 	getNextDeviceQueueItem,
 	setMACCommandsSet,
 	stopOnNothingToSend,
+	setPHYPayload,
+	encryptMACCommands,
+	setMIC,
 	sendDataDown,
 	saveDeviceSession,
-	logDownlinkFrame,
+	logDownlinkFrameForGateway,
+	decryptMACCommands,
+	logDownlinkFrameForDevice,
 }
 
 type dataContext struct {
@@ -584,7 +594,7 @@ func stopOnNothingToSend(ctx *dataContext) error {
 	return nil
 }
 
-func sendDataDown(ctx *dataContext) error {
+func setPHYPayload(ctx *dataContext) error {
 	if err := ctx.Validate(); err != nil {
 		return errors.Wrap(err, "validation error")
 	}
@@ -646,23 +656,61 @@ func sendDataDown(ctx *dataContext) error {
 		phy.MHDR.MType = lorawan.ConfirmedDataDown
 	}
 
-	if macCommandSize > 15 && ctx.FPort == 0 {
-		if err := phy.EncryptFRMPayload(ctx.DeviceSession.NwkSEncKey); err != nil {
+	ctx.PHYPayload = phy
+
+	return nil
+}
+
+func encryptMACCommands(ctx *dataContext) error {
+	// encrypt FRMPayload mac-commands
+	if ctx.FPort == 0 {
+		if err := ctx.PHYPayload.EncryptFRMPayload(ctx.DeviceSession.NwkSEncKey); err != nil {
 			return errors.Wrap(err, "encrypt frmpayload error")
 		}
 	}
 
-	if err := phy.SetDownlinkDataMIC(ctx.DeviceSession.GetMACVersion(), ctx.DeviceSession.FCntUp-1, ctx.DeviceSession.SNwkSIntKey); err != nil {
+	// encrypt FOpts mac-commands (LoRaWAN 1.1)
+	if ctx.DeviceSession.GetMACVersion() != lorawan.LoRaWAN1_0 {
+		if err := ctx.PHYPayload.EncryptFOpts(ctx.DeviceSession.NwkSEncKey); err != nil {
+			return errors.Wrap(err, "encrypt FOpts error")
+		}
+	}
+
+	return nil
+}
+
+func decryptMACCommands(ctx *dataContext) error {
+	// decrypt FRMPayload mac-commands
+	if ctx.FPort == 0 {
+		if err := ctx.PHYPayload.DecryptFRMPayload(ctx.DeviceSession.NwkSEncKey); err != nil {
+			return errors.Wrap(err, "decrypt frmpayload error")
+		}
+	}
+
+	// decrypt FOpts mac-commands (LoRaWAN 1.1)
+	if ctx.DeviceSession.GetMACVersion() != lorawan.LoRaWAN1_0 {
+		if err := ctx.PHYPayload.DecryptFOpts(ctx.DeviceSession.NwkSEncKey); err != nil {
+			return errors.Wrap(err, "encrypt FOpts error")
+		}
+	}
+
+	return nil
+}
+
+func setMIC(ctx *dataContext) error {
+	if err := ctx.PHYPayload.SetDownlinkDataMIC(ctx.DeviceSession.GetMACVersion(), ctx.DeviceSession.FCntUp-1, ctx.DeviceSession.SNwkSIntKey); err != nil {
 		return errors.Wrap(err, "set MIC error")
 	}
 
-	ctx.PHYPayload = phy
+	return nil
+}
 
+func sendDataDown(ctx *dataContext) error {
 	// send the packet to the gateway
 	if err := config.C.NetworkServer.Gateway.Backend.Backend.SendTXPacket(gw.TXPacket{
 		Token:      ctx.Token,
 		TXInfo:     ctx.TXInfo,
-		PHYPayload: phy,
+		PHYPayload: ctx.PHYPayload,
 	}); err != nil {
 		return errors.Wrap(err, "send tx packet to gateway error")
 	}
@@ -784,7 +832,20 @@ func getDataDownTXInfoAndDR(ds storage.DeviceSession, lastTXInfo models.TXInfo, 
 	return txInfo, dr, nil
 }
 
-func logDownlinkFrame(ctx *dataContext) error {
+func logDownlinkFrameForDevice(ctx *dataContext) error {
+	frameLog := framelog.DownlinkFrameLog{
+		PHYPayload: ctx.PHYPayload,
+		TXInfo:     ctx.TXInfo,
+	}
+
+	if err := framelog.LogDownlinkFrameForDevEUI(ctx.DeviceSession.DevEUI, frameLog); err != nil {
+		log.WithError(err).Error("log downlink frame for device error")
+	}
+
+	return nil
+}
+
+func logDownlinkFrameForGateway(ctx *dataContext) error {
 	frameLog := framelog.DownlinkFrameLog{
 		PHYPayload: ctx.PHYPayload,
 		TXInfo:     ctx.TXInfo,
@@ -792,10 +853,6 @@ func logDownlinkFrame(ctx *dataContext) error {
 
 	if err := framelog.LogDownlinkFrameForGateway(frameLog); err != nil {
 		log.WithError(err).Error("log downlink frame for gateway error")
-	}
-
-	if err := framelog.LogDownlinkFrameForDevEUI(ctx.DeviceSession.DevEUI, frameLog); err != nil {
-		log.WithError(err).Error("log downlink frame for device error")
 	}
 
 	return nil

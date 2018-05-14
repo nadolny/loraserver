@@ -202,9 +202,14 @@ func getApplicationServerClientForDataUp(ctx *dataContext) error {
 }
 
 func decryptFOptsMACCommands(ctx *dataContext) error {
-	// TODO implment LoRaWWAN 1.1 decrypt
-	if err := ctx.RXPacket.PHYPayload.DecodeFOptsToMACCommands(); err != nil {
-		return errors.Wrap(err, "decode fopts to mac-commands error")
+	if ctx.DeviceSession.GetMACVersion() == lorawan.LoRaWAN1_0 {
+		if err := ctx.RXPacket.PHYPayload.DecodeFOptsToMACCommands(); err != nil {
+			return errors.Wrap(err, "decode fOpts to mac-commands error")
+		}
+	} else {
+		if err := ctx.RXPacket.PHYPayload.DecryptFOpts(ctx.DeviceSession.NwkSEncKey); err != nil {
+			return errors.Wrap(err, "decrypt fOpts mac-commands error")
+		}
 	}
 	return nil
 }
