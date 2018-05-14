@@ -230,8 +230,8 @@ func (s DeviceSession) GetDownlinkGatewayMAC() (lorawan.EUI64, error) {
 	return lorawan.EUI64{}, errors.New("uplink gateway-history is empty")
 }
 
-// GetRandomDevAddr returns a random free DevAddr. Note that the 7 MSB will be
-// set to the NwkID (based on the configured NetID).
+// GetRandomDevAddr returns a random DevAddr, prefixed with NwkID based on the
+// given NetID.
 func GetRandomDevAddr(p *redis.Pool, netID lorawan.NetID) (lorawan.DevAddr, error) {
 	var d lorawan.DevAddr
 	b := make([]byte, len(d))
@@ -239,8 +239,7 @@ func GetRandomDevAddr(p *redis.Pool, netID lorawan.NetID) (lorawan.DevAddr, erro
 		return d, errors.Wrap(err, "read random bytes error")
 	}
 	copy(d[:], b)
-	d[0] = d[0] & 1                    // zero out 7 msb
-	d[0] = d[0] ^ (netID.NwkID() << 1) // set 7 msb to NwkID
+	d.SetAddrPrefix(netID)
 
 	return d, nil
 }

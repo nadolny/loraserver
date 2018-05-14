@@ -2,14 +2,14 @@
 
 
 [[projects]]
-  branch = "master"
+  branch = "lorawan_11"
   name = "github.com/brocaar/lorawan"
   packages = [
     ".",
     "backend",
     "band"
   ]
-  revision = "f359b50e77d1f421e9201846f425986017ffd851"
+  revision = "fb760fd16f8b9289ac59abe318e8f8189db5cbc4"
 
 [[projects]]
   branch = "master"
@@ -329,6 +329,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "6e652d8a9f5063c864da40afb13b72ee60b4dc24ccf5ac6f162aed52015659de"
+  inputs-digest = "7b34219faa766497cbbb26372adf0fb844454d00c6068f0b5bd91f96b682911a"
   solver-name = "gps-cdcl"
   solver-version = 1

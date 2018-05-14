@@ -28,8 +28,8 @@ func TestGetRandomDevAddr(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if devAddr.NwkID() != netID.NwkID() {
-					t.Fatalf("%b must equal %b", devAddr.NwkID(), netID.NwkID())
+				if !devAddr.IsNetID(netID) {
+					t.Fatalf("DevAddr %s does not have NetID %s prefix", devAddr, netID)
 				}
 				if len(log) != i {
 					t.Fatalf("%d must equal %d", len(log), i)
