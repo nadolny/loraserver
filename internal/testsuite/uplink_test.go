@@ -769,7 +769,7 @@ func TestUplinkScenarios(t *testing.T) {
 							},
 						},
 					},
-					ExpectedUplinkMIC:              lorawan.MIC{238, 115, 238, 115},
+					ExpectedUplinkMIC:              lorawan.MIC{205, 171, 205, 171},
 					ExpectedControllerHandleRXInfo: expectedControllerHandleRXInfo,
 					ExpectedControllerHandleDataUpMACCommands: []nc.HandleDataUpMACCommandRequest{
 						{DevEUI: ds.DevEUI[:], Cid: 128, Commands: [][]byte{{128, 1, 2, 3}}},

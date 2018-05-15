@@ -102,7 +102,7 @@ func getDeviceSessionForPHYPayload(ctx *dataContext) error {
 		// eg EU868:
 		//  channel 1 (868.3 DR 0-5)
 		//  channel x (868.3 DR 6)
-		if c.MinDR >= txDR && c.MaxDR >= txDR {
+		if c.MinDR <= txDR && c.MaxDR >= txDR {
 			txCh = i
 		}
 	}
