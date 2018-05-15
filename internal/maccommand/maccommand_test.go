@@ -42,7 +42,7 @@ func TestHandleUplink(t *testing.T) {
 					},
 				}
 
-				resp, err := Handle(&ds, block, nil, models.RXPacket{})
+				resp, err := Handle(&ds, storage.DeviceProfile{}, block, nil, models.RXPacket{})
 				So(err, ShouldBeNil)
 				So(resp, ShouldHaveLength, 0)
 
@@ -76,7 +76,7 @@ func TestHandleUplink(t *testing.T) {
 					},
 				}
 
-				resp, err := Handle(&ds, block, nil, rxPacket)
+				resp, err := Handle(&ds, storage.DeviceProfile{}, block, nil, rxPacket)
 				So(err, ShouldBeNil)
 
 				Convey("Then the expected response was returned", func() {
@@ -109,7 +109,7 @@ func TestHandleUplink(t *testing.T) {
 					},
 				}
 
-				resp, err := Handle(&ds, block, nil, models.RXPacket{})
+				resp, err := Handle(&ds, storage.DeviceProfile{}, block, nil, models.RXPacket{})
 				So(err, ShouldBeNil)
 
 				Convey("Then the ClassB PingNb has been set", func() {
@@ -293,7 +293,7 @@ func TestHandleDownlink(t *testing.T) {
 							},
 						}
 
-						resp, err := Handle(&tst.DeviceSession, answer, pending, models.RXPacket{})
+						resp, err := Handle(&tst.DeviceSession, storage.DeviceProfile{}, answer, pending, models.RXPacket{})
 						Convey("Then the expected error (or nil) was returned", func() {
 							if err != nil && tst.ExpectedError != nil {
 								So(err.Error(), ShouldResemble, tst.ExpectedError.Error())
@@ -400,7 +400,7 @@ func TestHandleDownlink(t *testing.T) {
 							},
 						}
 
-						_, err := Handle(&test.DeviceSession, answer, pending, models.RXPacket{})
+						_, err := Handle(&test.DeviceSession, storage.DeviceProfile{}, answer, pending, models.RXPacket{})
 						Convey("Then the expected error (or nil) was returned", func() {
 							if err != nil && test.ExpectedError != nil {
 								So(err.Error(), ShouldEqual, test.ExpectedError.Error())

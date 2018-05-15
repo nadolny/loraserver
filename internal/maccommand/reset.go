@@ -8,7 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func handleResetInd(ds *storage.DeviceSession, block storage.MACCommandBlock) ([]storage.MACCommandBlock, error) {
+func handleResetInd(ds *storage.DeviceSession, dp storage.DeviceProfile, block storage.MACCommandBlock) ([]storage.MACCommandBlock, error) {
 	if len(block.MACCommands) != 1 {
 		return nil, fmt.Errorf("exactly one mac-command expected, got %d", len(block.MACCommands))
 	}
@@ -33,6 +33,8 @@ func handleResetInd(ds *storage.DeviceSession, block storage.MACCommandBlock) ([
 		"dev_lorawan_version_minor":  pl.DevLoRaWANVersion.Minor,
 		"serv_lorawan_version_minor": servLoRaWANVersionMinor,
 	}).Info("reset_ind received")
+
+	ds.ResetToBootParameters(dp)
 
 	return []storage.MACCommandBlock{
 		{

@@ -263,7 +263,7 @@ func sendRXInfoToNetworkController(ctx *dataContext) error {
 
 func handleFOptsMACCommands(ctx *dataContext) error {
 	if len(ctx.MACPayload.FHDR.FOpts) > 0 {
-		blocks, err := handleUplinkMACCommands(&ctx.DeviceSession, ctx.MACPayload.FHDR.FOpts, ctx.RXPacket)
+		blocks, err := handleUplinkMACCommands(&ctx.DeviceSession, ctx.DeviceProfile, ctx.MACPayload.FHDR.FOpts, ctx.RXPacket)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"dev_eui": ctx.DeviceSession.DevEUI,
@@ -283,7 +283,7 @@ func handleFRMPayloadMACCommands(ctx *dataContext) error {
 			return errors.New("expected mac commands, but FRMPayload is empty (FPort=0)")
 		}
 
-		blocks, err := handleUplinkMACCommands(&ctx.DeviceSession, ctx.MACPayload.FRMPayload, ctx.RXPacket)
+		blocks, err := handleUplinkMACCommands(&ctx.DeviceSession, ctx.DeviceProfile, ctx.MACPayload.FRMPayload, ctx.RXPacket)
 		if err != nil {
 			log.WithFields(log.Fields{
 				"dev_eui":  ctx.DeviceSession.DevEUI,
@@ -527,7 +527,7 @@ func sendRXInfoPayload(ds storage.DeviceSession, rxPacket models.RXPacket) error
 	return nil
 }
 
-func handleUplinkMACCommands(ds *storage.DeviceSession, commands []lorawan.Payload, rxPacket models.RXPacket) ([]storage.MACCommandBlock, error) {
+func handleUplinkMACCommands(ds *storage.DeviceSession, dp storage.DeviceProfile, commands []lorawan.Payload, rxPacket models.RXPacket) ([]storage.MACCommandBlock, error) {
 	var cids []lorawan.CID
 	var out []storage.MACCommandBlock
 	blocks := make(map[lorawan.CID]storage.MACCommandBlock)
@@ -584,7 +584,7 @@ func handleUplinkMACCommands(ds *storage.DeviceSession, commands []lorawan.Paylo
 
 		// CID >= 0x80 are proprietary mac-commands and are not handled by LoRa Server
 		if block.CID < 0x80 {
-			responseBlocks, err := maccommand.Handle(ds, block, pending, rxPacket)
+			responseBlocks, err := maccommand.Handle(ds, dp, block, pending, rxPacket)
 			if err != nil {
 				log.WithFields(logFields).Errorf("handle mac-command block error: %s", err)
 			} else {

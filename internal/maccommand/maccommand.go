@@ -9,7 +9,7 @@ import (
 )
 
 // Handle handles a MACCommand sent by a node.
-func Handle(ds *storage.DeviceSession, block storage.MACCommandBlock, pending *storage.MACCommandBlock, rxPacket models.RXPacket) ([]storage.MACCommandBlock, error) {
+func Handle(ds *storage.DeviceSession, dp storage.DeviceProfile, block storage.MACCommandBlock, pending *storage.MACCommandBlock, rxPacket models.RXPacket) ([]storage.MACCommandBlock, error) {
 	switch block.CID {
 	case lorawan.LinkADRAns:
 		return handleLinkADRAns(ds, block, pending)
@@ -31,6 +31,8 @@ func Handle(ds *storage.DeviceSession, block storage.MACCommandBlock, pending *s
 		return handleRXTimingSetupAns(ds, block, pending)
 	case lorawan.RekeyInd:
 		return handleRekeyInd(ds, block)
+	case lorawan.ResetInd:
+		return handleResetInd(ds, dp, block)
 	default:
 		return nil, fmt.Errorf("undefined CID %d", block.CID)
 	}

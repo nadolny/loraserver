@@ -45,7 +45,7 @@ func TestRekey(t *testing.T) {
 							CID: lorawan.RekeyInd,
 							Payload: &lorawan.RekeyIndPayload{
 								DevLoRaWANVersion: lorawan.Version{
-									Minor: 1,
+									Minor: test.DevMinorVersion,
 								},
 							},
 						},
