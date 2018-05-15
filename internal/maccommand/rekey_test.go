@@ -52,7 +52,9 @@ func TestRekey(t *testing.T) {
 					},
 				}
 
-				out, err := handleRekeyInd(nil, req)
+				ds := storage.DeviceSession{}
+
+				out, err := handleRekeyInd(&ds, req)
 				So(err, ShouldBeNil)
 				So(out, ShouldHaveLength, 1)
 				So(out[0], ShouldResemble, test.ExpectedMACCommandBlock)
