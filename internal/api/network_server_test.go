@@ -567,6 +567,7 @@ func TestNetworkServerAPI(t *testing.T) {
 					PingSlotPeriod: 32,
 					PingSlotFreq:   868100000,
 					PingSlotDR:     5,
+					MACVersion:     "1.0.2",
 				},
 			}
 			So(storage.CreateDeviceProfile(config.C.PostgreSQL.DB, &dp), ShouldBeNil)
@@ -665,6 +666,7 @@ func TestNetworkServerAPI(t *testing.T) {
 							PingSlotDR:            5,
 							PingSlotFrequency:     868100000,
 							NbTrans:               1,
+							MACVersion:            "1.0.2",
 						})
 					})
 
@@ -685,12 +687,30 @@ func TestNetworkServerAPI(t *testing.T) {
 						})
 					})
 
-					Convey("Then GetNextDownlinkFCntForDevEUI returns the expected FCnt", func() {
-						resp, err := api.GetNextDownlinkFCntForDevEUI(ctx, &ns.GetNextDownlinkFCntForDevEUIRequest{
-							DevEUI: devEUI[:],
+					Convey("For LoRaWAN 1.0", func() {
+						Convey("Then GetNextDownlinkFCntForDevEUI returns the expected FCnt", func() {
+							resp, err := api.GetNextDownlinkFCntForDevEUI(ctx, &ns.GetNextDownlinkFCntForDevEUIRequest{
+								DevEUI: devEUI[:],
+							})
+							So(err, ShouldBeNil)
+							So(resp.FCnt, ShouldEqual, 11)
 						})
-						So(err, ShouldBeNil)
-						So(resp.FCnt, ShouldEqual, 11)
+					})
+
+					Convey("For LoRaWAN 1.1", func() {
+						Convey("Then GetNextDownlinkFCntForDevEUI returns the expected FCnt", func() {
+							ds, err := storage.GetDeviceSession(config.C.Redis.Pool, devEUI)
+							So(err, ShouldBeNil)
+
+							ds.MACVersion = "1.1.0"
+							So(storage.SaveDeviceSession(config.C.Redis.Pool, ds), ShouldBeNil)
+
+							resp, err := api.GetNextDownlinkFCntForDevEUI(ctx, &ns.GetNextDownlinkFCntForDevEUIRequest{
+								DevEUI: devEUI[:],
+							})
+							So(err, ShouldBeNil)
+							So(resp.FCnt, ShouldEqual, 12)
+						})
 					})
 
 					Convey("Given an item in the device-queue", func() {

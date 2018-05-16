@@ -586,6 +586,8 @@ func (n *NetworkServerAPI) ActivateDevice(ctx context.Context, req *ns.ActivateD
 
 		// set to invalid value to indicate we haven't received a status yet
 		LastDevStatusMargin: 127,
+
+		MACVersion: dp.MACVersion,
 	}
 
 	// reset the device-session to the device boot parameters
@@ -1161,7 +1163,12 @@ func (n *NetworkServerAPI) GetNextDownlinkFCntForDevEUI(ctx context.Context, req
 	if err != nil {
 		return nil, errToRPCError(err)
 	}
-	resp.FCnt = ds.NFCntDown
+
+	if ds.GetMACVersion() == lorawan.LoRaWAN1_0 {
+		resp.FCnt = ds.NFCntDown
+	} else {
+		resp.FCnt = ds.AFCntDown
+	}
 
 	items, err := storage.GetDeviceQueueItemsForDevEUI(config.C.PostgreSQL.DB, devEUI)
 	if err != nil {
