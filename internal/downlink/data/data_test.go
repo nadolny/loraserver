@@ -124,6 +124,7 @@ func TestGetNextDeviceQueueItem(t *testing.T) {
 							RoutingProfileID: rp.RoutingProfile.RoutingProfileID,
 							DevEUI:           d.DevEUI,
 							NFCntDown:        11,
+							ConfFCnt:         11,
 						},
 						RemainingPayloadSize: 242 - len(items[1].FRMPayload),
 						Confirmed:            true,

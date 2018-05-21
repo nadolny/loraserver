@@ -69,6 +69,7 @@ type DeviceSession struct {
 	FCntUp      uint32
 	NFCntDown   uint32
 	AFCntDown   uint32
+	ConfFCnt    uint32
 
 	// Only used by ABP activation
 	SkipFCntValidation bool
@@ -403,7 +404,9 @@ func GetDeviceSessionForPHYPayload(p *redis.Pool, phy lorawan.PHYPayload, txDR, 
 				s.UplinkHistory = []UplinkHistory{}
 
 				// validate if the mic is valid given the FCnt reset
-				micOK, err := phy.ValidateUplinkDataMIC(s.GetMACVersion(), s.AFCntDown, uint8(txDR), uint8(txCh), s.FNwkSIntKey, s.SNwkSIntKey)
+				// note that we can always set the ConfFCnt as the validation
+				// function will only use it when the ACK bit is set
+				micOK, err := phy.ValidateUplinkDataMIC(s.GetMACVersion(), s.ConfFCnt, uint8(txDR), uint8(txCh), s.FNwkSIntKey, s.SNwkSIntKey)
 				if err != nil {
 					return DeviceSession{}, errors.Wrap(err, "validate mic error")
 				}
@@ -471,6 +474,7 @@ func deviceSessionToDeviceSessionPB(d DeviceSession) DeviceSessionPB {
 		FCntUp:        d.FCntUp,
 		NFCntDown:     d.NFCntDown,
 		AFCntDown:     d.AFCntDown,
+		ConfFCnt:      d.ConfFCnt,
 		SkipFCntCheck: d.SkipFCntValidation,
 
 		RxDelay:      uint32(d.RXDelay),
@@ -543,6 +547,7 @@ func deviceSessionPBToDeviceSession(d DeviceSessionPB) DeviceSession {
 		FCntUp:             d.FCntUp,
 		NFCntDown:          d.NFCntDown,
 		AFCntDown:          d.AFCntDown,
+		ConfFCnt:           d.ConfFCnt,
 		SkipFCntValidation: d.SkipFCntCheck,
 
 		RXDelay:      uint8(d.RxDelay),

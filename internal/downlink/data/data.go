@@ -366,7 +366,14 @@ func setRemainingPayloadSize(ctx *dataContext) error {
 }
 
 func getNextDeviceQueueItem(ctx *dataContext) error {
-	qi, err := storage.GetNextDeviceQueueItemForDevEUIMaxPayloadSizeAndFCnt(config.C.PostgreSQL.DB, ctx.DeviceSession.DevEUI, ctx.RemainingPayloadSize, ctx.DeviceSession.NFCntDown, ctx.DeviceSession.RoutingProfileID)
+	var fCnt uint32
+	if ctx.DeviceSession.GetMACVersion() == lorawan.LoRaWAN1_0 {
+		fCnt = ctx.DeviceSession.NFCntDown
+	} else {
+		fCnt = ctx.DeviceSession.AFCntDown
+	}
+
+	qi, err := storage.GetNextDeviceQueueItemForDevEUIMaxPayloadSizeAndFCnt(config.C.PostgreSQL.DB, ctx.DeviceSession.DevEUI, ctx.RemainingPayloadSize, fCnt, ctx.DeviceSession.RoutingProfileID)
 	if err != nil {
 		if errors.Cause(err) == storage.ErrDoesNotExist {
 			return nil
@@ -389,7 +396,11 @@ func getNextDeviceQueueItem(ctx *dataContext) error {
 	// multiple frames (payload size) or the application-server might have
 	// incremented the counter incorrectly. This is important since it is
 	// used for decrypting the payload by the device!!
-	ctx.DeviceSession.NFCntDown = qi.FCnt
+	if ctx.DeviceSession.GetMACVersion() == lorawan.LoRaWAN1_0 {
+		ctx.DeviceSession.NFCntDown = qi.FCnt
+	} else {
+		ctx.DeviceSession.AFCntDown = qi.FCnt
+	}
 
 	// Update TXInfo with Class-B scheduling info
 	if ctx.RXPacket == nil && qi.EmitAtTimeSinceGPSEpoch != nil {
@@ -411,6 +422,10 @@ func getNextDeviceQueueItem(ctx *dataContext) error {
 			return errors.Wrap(err, "delete device-queue item error")
 		}
 	} else {
+		// Set the ConfFCnt to the FCnt of the queue-item.
+		// When we receive an ACK, we need this to validate the MIC.
+		ctx.DeviceSession.ConfFCnt = qi.FCnt
+
 		// mark as pending and set timeout
 		timeout := time.Now()
 		if ctx.DeviceProfile.SupportsClassC {
@@ -599,6 +614,15 @@ func setPHYPayload(ctx *dataContext) error {
 		return errors.Wrap(err, "validation error")
 	}
 
+	var fCnt uint32
+	if ctx.DeviceSession.GetMACVersion() == lorawan.LoRaWAN1_0 || ctx.FPort == 0 {
+		fCnt = ctx.DeviceSession.NFCntDown
+		ctx.DeviceSession.NFCntDown++
+	} else {
+		fCnt = ctx.DeviceSession.AFCntDown
+		ctx.DeviceSession.AFCntDown++
+	}
+
 	macPL := &lorawan.MACPayload{
 		FHDR: lorawan.FHDR{
 			DevAddr: ctx.DeviceSession.DevAddr,
@@ -607,7 +631,7 @@ func setPHYPayload(ctx *dataContext) error {
 				ACK:      ctx.ACK,
 				FPending: ctx.MoreData,
 			},
-			FCnt: ctx.DeviceSession.NFCntDown,
+			FCnt: fCnt,
 		},
 	}
 
@@ -714,9 +738,6 @@ func sendDataDown(ctx *dataContext) error {
 	}); err != nil {
 		return errors.Wrap(err, "send tx packet to gateway error")
 	}
-
-	// increment downlink framecounter
-	ctx.DeviceSession.NFCntDown++
 
 	// set last downlink tx timestamp
 	ctx.DeviceSession.LastDownlinkTX = time.Now()

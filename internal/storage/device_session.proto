@@ -68,6 +68,9 @@ message DeviceSessionPB {
     // Note: this frame-counter is managed by the application-server.
     uint32 a_f_cnt_down = 12;
     
+    // Frame-counter holding the last confirmed downlink frame (n_f_cnt_down or a_f_cnt_down).
+    uint32 conf_f_cnt = 39;
+
     // Skip uplink frame-counter validation.
     bool skip_f_cnt_check = 13;
 
