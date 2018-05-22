@@ -135,6 +135,14 @@ type DeviceSession struct {
 	PingSlotNb        int
 	PingSlotDR        int
 	PingSlotFrequency int
+
+	// RejoinRequestMaxCountN defines the 2^(C+4) uplink message interval for
+	// the rejoin-request.
+	RejoinRequestMaxCountN int
+
+	// RejoinRequestMaxTimeN defines the 2^(T+10) time interval (seconds)
+	// for the rejoin-request.
+	RejoinRequestMaxTimeN int
 }
 
 // AppendUplinkHistory appends an UplinkHistory item and makes sure the list
@@ -502,6 +510,9 @@ func deviceSessionToDeviceSessionPB(d DeviceSession) DeviceSessionPB {
 		PingSlotNb:                    uint32(d.PingSlotNb),
 		PingSlotDr:                    uint32(d.PingSlotDR),
 		PingSlotFrequency:             uint32(d.PingSlotFrequency),
+
+		RejoinRequestMaxCountN: uint32(d.RejoinRequestMaxCountN),
+		RejoinRequestMaxTimeN:  uint32(d.RejoinRequestMaxTimeN),
 	}
 
 	for _, c := range d.EnabledUplinkChannels {
@@ -572,6 +583,9 @@ func deviceSessionPBToDeviceSession(d DeviceSessionPB) DeviceSession {
 		PingSlotNb:           int(d.PingSlotNb),
 		PingSlotDR:           int(d.PingSlotDr),
 		PingSlotFrequency:    int(d.PingSlotFrequency),
+
+		RejoinRequestMaxCountN: int(d.RejoinRequestMaxCountN),
+		RejoinRequestMaxTimeN:  int(d.RejoinRequestMaxTimeN),
 	}
 
 	if d.LastDeviceStatusRequestTimeUnixNs > 0 {

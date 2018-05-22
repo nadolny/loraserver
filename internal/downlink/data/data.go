@@ -45,6 +45,7 @@ var setMACCommandsSet = setMACCommands(
 	requestChannelMaskReconfiguration,
 	requestADRChange,
 	requestDevStatus,
+	requestRejoinParamSetup,
 	setPingSlotParameters,
 	setRXParameters,
 	getMACCommandsFromQueue,
@@ -247,6 +248,22 @@ func requestDevStatus(ctx *dataContext) error {
 
 	if curInterval >= reqInterval {
 		ctx.MACCommands = append(ctx.MACCommands, maccommand.RequestDevStatus(&ctx.DeviceSession))
+	}
+
+	return nil
+}
+
+func requestRejoinParamSetup(ctx *dataContext) error {
+	if !config.C.NetworkServer.NetworkSettings.RejoinRequest.Enabled {
+		return nil
+	}
+
+	if ctx.DeviceSession.RejoinRequestMaxCountN != config.C.NetworkServer.NetworkSettings.RejoinRequest.MaxCountN ||
+		ctx.DeviceSession.RejoinRequestMaxTimeN != config.C.NetworkServer.NetworkSettings.RejoinRequest.MaxTimeN {
+		ctx.MACCommands = append(ctx.MACCommands, maccommand.RequestRejoinParamSetup(
+			config.C.NetworkServer.NetworkSettings.RejoinRequest.MaxTimeN,
+			config.C.NetworkServer.NetworkSettings.RejoinRequest.MaxCountN,
+		))
 	}
 
 	return nil

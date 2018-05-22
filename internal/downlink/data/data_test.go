@@ -539,6 +539,60 @@ func TestSetMACCommandsSet(t *testing.T) {
 					},
 				},
 			},
+			{
+				BeforeFunc: func() error {
+					config.C.NetworkServer.NetworkSettings.RejoinRequest.Enabled = true
+					config.C.NetworkServer.NetworkSettings.RejoinRequest.MaxCountN = 1
+					config.C.NetworkServer.NetworkSettings.RejoinRequest.MaxTimeN = 2
+					return nil
+				},
+				Name: "trigger rejoin param setup request",
+				Context: dataContext{
+					RemainingPayloadSize: 200,
+					DeviceSession: storage.DeviceSession{
+						EnabledUplinkChannels: []int{0, 1, 2},
+						TXPowerIndex:          2,
+						DR:                    5,
+						NbTrans:               2,
+						RX2Frequency:          869525000,
+					},
+				},
+				ExpectedMACCommands: []storage.MACCommandBlock{
+					{
+						CID: lorawan.RejoinParamSetupReq,
+						MACCommands: []lorawan.MACCommand{
+							{
+								CID: lorawan.RejoinParamSetupReq,
+								Payload: &lorawan.RejoinParamSetupReqPayload{
+									MaxCountN: 1,
+									MaxTimeN:  2,
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				BeforeFunc: func() error {
+					config.C.NetworkServer.NetworkSettings.RejoinRequest.Enabled = true
+					config.C.NetworkServer.NetworkSettings.RejoinRequest.MaxCountN = 1
+					config.C.NetworkServer.NetworkSettings.RejoinRequest.MaxTimeN = 2
+					return nil
+				},
+				Name: "trigger rejoin param setup request are in sync",
+				Context: dataContext{
+					RemainingPayloadSize: 200,
+					DeviceSession: storage.DeviceSession{
+						EnabledUplinkChannels:  []int{0, 1, 2},
+						TXPowerIndex:           2,
+						DR:                     5,
+						NbTrans:                2,
+						RX2Frequency:           869525000,
+						RejoinRequestMaxCountN: 1,
+						RejoinRequestMaxTimeN:  2,
+					},
+				},
+			},
 		}
 
 		for i, test := range tests {
@@ -549,6 +603,7 @@ func TestSetMACCommandsSet(t *testing.T) {
 				config.C.NetworkServer.NetworkSettings.RX2Frequency = 869525000
 				config.C.NetworkServer.NetworkSettings.RX2DR = 0
 				config.C.NetworkServer.NetworkSettings.RX1DROffset = 0
+				config.C.NetworkServer.NetworkSettings.RejoinRequest.Enabled = false
 
 				if test.BeforeFunc != nil {
 					So(test.BeforeFunc(), ShouldBeNil)

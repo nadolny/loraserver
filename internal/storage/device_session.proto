@@ -158,4 +158,12 @@ message DeviceSessionPB {
 	// MinSupportedTXPowerIndex defines the minimum supported tx-power index
     // by the node (default 0).
     uint32 min_supported_tx_power_index = 38;
+
+	// RejoinRequestMaxCountN defines the 2^(C+4) uplink message interval for
+    // the rejoin-request.
+    uint32 rejoin_request_max_count_n = 40;
+
+	// RejoinRequestMaxTimeN defines the 2^(T+10) time interval (seconds)
+    // for the rejoin-request.
+    uint32 rejoin_request_max_time_n = 41;
 }
