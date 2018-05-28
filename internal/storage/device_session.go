@@ -143,6 +143,9 @@ type DeviceSession struct {
 	// RejoinRequestMaxTimeN defines the 2^(T+10) time interval (seconds)
 	// for the rejoin-request.
 	RejoinRequestMaxTimeN int
+
+	RejoinCount0               uint16
+	PendingRejoinDeviceSession *DeviceSession
 }
 
 // AppendUplinkHistory appends an UplinkHistory item and makes sure the list
@@ -285,7 +288,10 @@ func SaveDeviceSession(p *redis.Pool, s DeviceSession) error {
 	c.Send("PSETEX", fmt.Sprintf(deviceSessionKeyTempl, s.DevEUI), exp, b)
 	c.Send("SADD", fmt.Sprintf(devAddrKeyTempl, s.DevAddr), s.DevEUI[:])
 	c.Send("PEXPIRE", fmt.Sprintf(devAddrKeyTempl, s.DevAddr), exp)
-
+	if s.PendingRejoinDeviceSession != nil {
+		c.Send("SADD", fmt.Sprintf(devAddrKeyTempl, s.PendingRejoinDeviceSession.DevAddr), s.DevEUI[:])
+		c.Send("PEXPIRE", fmt.Sprintf(devAddrKeyTempl, s.PendingRejoinDeviceSession.DevAddr), exp)
+	}
 	if _, err := c.Do("EXEC"); err != nil {
 		return errors.Wrap(err, "exec error")
 	}
@@ -393,6 +399,14 @@ func GetDeviceSessionForPHYPayload(p *redis.Pool, phy lorawan.PHYPayload, txDR, 
 	if err != nil {
 		return DeviceSession{}, err
 	}
+
+	var pendingSessions []DeviceSession
+	for i := range sessions {
+		if sessions[i].PendingRejoinDeviceSession != nil {
+			pendingSessions = append(pendingSessions, *sessions[i].PendingRejoinDeviceSession)
+		}
+	}
+	sessions = append(sessions, pendingSessions...)
 
 	for _, s := range sessions {
 		// reset to the original FCnt
@@ -513,6 +527,8 @@ func deviceSessionToDeviceSessionPB(d DeviceSession) DeviceSessionPB {
 
 		RejoinRequestMaxCountN: uint32(d.RejoinRequestMaxCountN),
 		RejoinRequestMaxTimeN:  uint32(d.RejoinRequestMaxTimeN),
+
+		RejoinCount_0: uint32(d.RejoinCount0),
 	}
 
 	for _, c := range d.EnabledUplinkChannels {
@@ -542,6 +558,16 @@ func deviceSessionToDeviceSessionPB(d DeviceSession) DeviceSessionPB {
 
 	for mac := range d.UplinkGatewayHistory {
 		out.UplinkGatewayHistory[mac.String()] = nil
+	}
+
+	if d.PendingRejoinDeviceSession != nil {
+		dsPB := deviceSessionToDeviceSessionPB(*d.PendingRejoinDeviceSession)
+		b, err := proto.Marshal(&dsPB)
+		if err != nil {
+			log.WithField("dev_eui", d.DevEUI).WithError(err).Error("protobuf encode error")
+		}
+
+		out.PendingRejoinDeviceSession = b
 	}
 
 	return out
@@ -586,6 +612,8 @@ func deviceSessionPBToDeviceSession(d DeviceSessionPB) DeviceSession {
 
 		RejoinRequestMaxCountN: int(d.RejoinRequestMaxCountN),
 		RejoinRequestMaxTimeN:  int(d.RejoinRequestMaxTimeN),
+
+		RejoinCount0: uint16(d.RejoinCount_0),
 	}
 
 	if d.LastDeviceStatusRequestTimeUnixNs > 0 {
@@ -634,6 +662,16 @@ func deviceSessionPBToDeviceSession(d DeviceSessionPB) DeviceSession {
 			continue
 		}
 		out.UplinkGatewayHistory[mac] = UplinkGatewayHistory{}
+	}
+
+	if len(d.PendingRejoinDeviceSession) != 0 {
+		var dsPB DeviceSessionPB
+		if err := proto.Unmarshal(d.PendingRejoinDeviceSession, &dsPB); err != nil {
+			log.WithField("dev_eui", out.DevEUI).WithError(err).Error("decode pending rejoin device-session error")
+		} else {
+			ds := deviceSessionPBToDeviceSession(dsPB)
+			out.PendingRejoinDeviceSession = &ds
+		}
 	}
 
 	return out

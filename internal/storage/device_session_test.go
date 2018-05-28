@@ -198,6 +198,23 @@ func TestGetDeviceSessionForPHYPayload(t *testing.T) {
 				FCntUp:             200,
 				SkipFCntValidation: false,
 			},
+			{
+				DevAddr:            devAddr,
+				DevEUI:             lorawan.EUI64{3, 3, 3, 3, 3, 3, 3, 3},
+				SNwkSIntKey:        lorawan.AES128Key{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
+				FNwkSIntKey:        lorawan.AES128Key{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
+				NwkSEncKey:         lorawan.AES128Key{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
+				FCntUp:             300,
+				SkipFCntValidation: false,
+				PendingRejoinDeviceSession: &DeviceSession{
+					DevAddr:     lorawan.DevAddr{4, 3, 2, 1},
+					DevEUI:      lorawan.EUI64{3, 3, 3, 3, 3, 3, 3, 3},
+					SNwkSIntKey: lorawan.AES128Key{4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
+					FNwkSIntKey: lorawan.AES128Key{4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
+					NwkSEncKey:  lorawan.AES128Key{4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
+					FCntUp:      0,
+				},
+			},
 		}
 		for _, s := range deviceSessions {
 			So(SaveDeviceSession(p, s), ShouldBeNil)
@@ -265,6 +282,15 @@ func TestGetDeviceSessionForPHYPayload(t *testing.T) {
 					FCnt:          deviceSessions[0].FCntUp,
 					ExpectedError: ErrDoesNotExistOrFCntOrMICInvalid,
 				},
+				{
+					Name:           "matching pending rejoin device-session",
+					DevAddr:        lorawan.DevAddr{4, 3, 2, 1},
+					SNwkSIntKey:    lorawan.AES128Key{4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
+					FNwkSIntKey:    lorawan.AES128Key{4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
+					FCnt:           0,
+					ExpectedDevEUI: lorawan.EUI64{3, 3, 3, 3, 3, 3, 3, 3},
+					ExpectedFCntUp: 0,
+				},
 			}
 
 			for i, test := range testTable {
@@ -291,12 +317,6 @@ func TestGetDeviceSessionForPHYPayload(t *testing.T) {
 						return
 					}
 					So(err, ShouldBeNil)
-
-					// "refresh" the s, to test if the FCnt has been updated
-					// in case of a frame counter reset
-					s, err = GetDeviceSession(p, s.DevEUI)
-					So(err, ShouldBeNil)
-
 					So(s.DevEUI, ShouldResemble, test.ExpectedDevEUI)
 					So(s.FCntUp, ShouldEqual, test.ExpectedFCntUp)
 				})

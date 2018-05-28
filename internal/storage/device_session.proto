@@ -166,4 +166,12 @@ message DeviceSessionPB {
 	// RejoinRequestMaxTimeN defines the 2^(T+10) time interval (seconds)
     // for the rejoin-request.
     uint32 rejoin_request_max_time_n = 41;
+
+    // Rejoin counter (RJCount0).
+    // This counter is reset to 0 after each successful join-accept.
+    uint32 rejoin_count_0 = 42;
+
+    // Pending rejoin device-session contains a device-session which has not
+    // yet been activated by the device (by sending a first uplink).
+    bytes pending_rejoin_device_session = 43;
 }
