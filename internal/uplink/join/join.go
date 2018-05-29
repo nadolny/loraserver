@@ -116,7 +116,7 @@ func getDeviceAndDeviceProfile(ctx *context) error {
 
 func validateNonce(ctx *context) error {
 	// validate that the nonce has not been used yet
-	err := storage.ValidateDevNonce(config.C.PostgreSQL.DB, ctx.JoinRequestPayload.JoinEUI, ctx.JoinRequestPayload.DevEUI, ctx.JoinRequestPayload.DevNonce)
+	err := storage.ValidateDevNonce(config.C.PostgreSQL.DB, ctx.JoinRequestPayload.JoinEUI, ctx.JoinRequestPayload.DevEUI, ctx.JoinRequestPayload.DevNonce, lorawan.JoinRequestType)
 	if err != nil {
 		return errors.Wrap(err, "validate dev-nonce error")
 	}
@@ -291,6 +291,7 @@ func createDeviceActivation(ctx *context) error {
 		FNwkSIntKey: ctx.DeviceSession.FNwkSIntKey,
 		NwkSEncKey:  ctx.DeviceSession.NwkSEncKey,
 		DevNonce:    ctx.JoinRequestPayload.DevNonce,
+		JoinReqType: lorawan.JoinRequestType,
 	}
 
 	if err := storage.CreateDeviceActivation(config.C.PostgreSQL.DB, &da); err != nil {

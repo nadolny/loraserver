@@ -107,7 +107,7 @@ func TestOTAAScenarios(t *testing.T) {
 			MACPayload: &lorawan.JoinRequestPayload{
 				JoinEUI:  lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8},
 				DevEUI:   d.DevEUI,
-				DevNonce: [2]byte{1, 2},
+				DevNonce: 258,
 			},
 		}
 		So(jrPayload.SetUplinkJoinMIC(appKey), ShouldBeNil)
@@ -115,7 +115,7 @@ func TestOTAAScenarios(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		jaPayload := lorawan.JoinAcceptPayload{
-			JoinNonce: [3]byte{3, 2, 1},
+			JoinNonce: 197121,
 			HomeNetID: config.C.NetworkServer.NetID,
 			DLSettings: lorawan.DLSettings{
 				RX2DataRate: 2,
@@ -132,7 +132,7 @@ func TestOTAAScenarios(t *testing.T) {
 			},
 			MACPayload: &jaPayload,
 		}
-		So(jaPHY.SetDownlinkJoinMIC(lorawan.JoinRequestType, lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8}, lorawan.DevNonce{1, 2}, appKey), ShouldBeNil)
+		So(jaPHY.SetDownlinkJoinMIC(lorawan.JoinRequestType, lorawan.EUI64{1, 2, 3, 4, 5, 6, 7, 8}, lorawan.DevNonce(258), appKey), ShouldBeNil)
 		So(jaPHY.EncryptJoinAcceptPayload(appKey), ShouldBeNil)
 		jaBytes, err := jaPHY.MarshalBinary()
 		So(err, ShouldBeNil)
@@ -161,7 +161,8 @@ func TestOTAAScenarios(t *testing.T) {
 							SNwkSIntKey: lorawan.AES128Key{},
 							FNwkSIntKey: lorawan.AES128Key{},
 							NwkSEncKey:  lorawan.AES128Key{},
-							DevNonce:    lorawan.DevNonce{1, 2},
+							JoinReqType: lorawan.JoinRequestType,
+							DevNonce:    258,
 						},
 					},
 					ExpectedError: errors.New("validate dev-nonce error: object already exists"),

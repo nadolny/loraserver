@@ -31,6 +31,7 @@ type DeviceActivation struct {
 	SNwkSIntKey lorawan.AES128Key `db:"s_nwk_s_int_key"`
 	NwkSEncKey  lorawan.AES128Key `db:"nwk_s_enc_key"`
 	DevNonce    lorawan.DevNonce  `db:"dev_nonce"`
+	JoinReqType lorawan.JoinType  `db:"join_req_type"`
 }
 
 // CreateDevice creates the given device.
@@ -145,8 +146,9 @@ func CreateDeviceActivation(db sqlx.Queryer, da *DeviceActivation) error {
 			s_nwk_s_int_key,
 			f_nwk_s_int_key,
 			nwk_s_enc_key,
-			dev_nonce
-		) values ($1, $2, $3, $4, $5, $6, $7, $8)
+			dev_nonce,
+			join_req_type
+		) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		returning id`,
 		da.CreatedAt,
 		da.DevEUI[:],
@@ -155,7 +157,8 @@ func CreateDeviceActivation(db sqlx.Queryer, da *DeviceActivation) error {
 		da.SNwkSIntKey[:],
 		da.FNwkSIntKey[:],
 		da.NwkSEncKey[:],
-		da.DevNonce[:],
+		da.DevNonce,
+		da.JoinReqType,
 	)
 	if err != nil {
 		return handlePSQLError(err, "insert error")
@@ -180,7 +183,7 @@ func GetLastDeviceActivationForDevEUI(db sqlx.Queryer, devEUI lorawan.EUI64) (De
 		where
 			dev_eui = $1
 		order by
-			created_at desc
+			id desc
 		limit 1`,
 		devEUI[:],
 	)
@@ -193,7 +196,7 @@ func GetLastDeviceActivationForDevEUI(db sqlx.Queryer, devEUI lorawan.EUI64) (De
 
 // ValidateDevNonce validates the given dev-nonce for the given
 // DevEUI / JoinEUI combination.
-func ValidateDevNonce(db sqlx.Queryer, joinEUI, devEUI lorawan.EUI64, nonce lorawan.DevNonce) error {
+func ValidateDevNonce(db sqlx.Queryer, joinEUI, devEUI lorawan.EUI64, nonce lorawan.DevNonce, joinType lorawan.JoinType) error {
 	var count int
 	err := sqlx.Get(db, &count, `
 		select
@@ -203,10 +206,12 @@ func ValidateDevNonce(db sqlx.Queryer, joinEUI, devEUI lorawan.EUI64, nonce lora
 		where
 			dev_eui = $1
 			and join_eui = $2
-			and dev_nonce = $3`,
+			and dev_nonce = $3
+			and join_req_type = $4`,
 		devEUI,
 		joinEUI,
 		nonce,
+		joinType,
 	)
 	if err != nil {
 		return handlePSQLError(err, "select error")
