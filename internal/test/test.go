@@ -182,15 +182,19 @@ func (p *JoinServerPool) Get(joinEUI lorawan.EUI64) (jsclient.Client, error) {
 
 // JoinServerClient is a join-server client for testing.
 type JoinServerClient struct {
-	JoinReqPayloadChan chan backend.JoinReqPayload
-	JoinReqError       error
-	JoinAnsPayload     backend.JoinAnsPayload
+	JoinReqPayloadChan   chan backend.JoinReqPayload
+	RejoinReqPayloadChan chan backend.RejoinReqPayload
+	JoinReqError         error
+	RejoinReqError       error
+	JoinAnsPayload       backend.JoinAnsPayload
+	RejoinAnsPayload     backend.RejoinAnsPayload
 }
 
 // NewJoinServerClient creates a new join-server client.
 func NewJoinServerClient() *JoinServerClient {
 	return &JoinServerClient{
-		JoinReqPayloadChan: make(chan backend.JoinReqPayload, 100),
+		JoinReqPayloadChan:   make(chan backend.JoinReqPayload, 100),
+		RejoinReqPayloadChan: make(chan backend.RejoinReqPayload, 100),
 	}
 }
 
@@ -198,6 +202,12 @@ func NewJoinServerClient() *JoinServerClient {
 func (c *JoinServerClient) JoinReq(pl backend.JoinReqPayload) (backend.JoinAnsPayload, error) {
 	c.JoinReqPayloadChan <- pl
 	return c.JoinAnsPayload, c.JoinReqError
+}
+
+// RejoinReq method.
+func (c *JoinServerClient) RejoinReq(pl backend.RejoinReqPayload) (backend.RejoinAnsPayload, error) {
+	c.RejoinReqPayloadChan <- pl
+	return c.RejoinAnsPayload, c.RejoinReqError
 }
 
 // ApplicationServerPool is an application-server pool for testing.

@@ -18,6 +18,7 @@ import (
 	"github.com/brocaar/loraserver/internal/uplink"
 	"github.com/brocaar/lorawan"
 	"github.com/brocaar/lorawan/backend"
+	"github.com/brocaar/lorawan/band"
 )
 
 type uplinkTestCase struct {
@@ -69,6 +70,10 @@ func TestUplinkScenarios(t *testing.T) {
 	config.C.PostgreSQL.DB = db
 	config.C.Redis.Pool = common.NewRedisPool(conf.RedisURL)
 	config.C.NetworkServer.NetworkSettings.InstallationMargin = 5
+	config.C.NetworkServer.Band.Band, _ = band.GetConfig(band.EU_863_870, false, lorawan.DwellTimeNoLimit)
+	config.C.NetworkServer.NetworkSettings.RX2DR = 0
+	config.C.NetworkServer.NetworkSettings.RX1DROffset = 0
+	config.C.NetworkServer.NetworkSettings.RX1Delay = 0
 
 	Convey("Given a clean database", t, func() {
 		test.MustFlushRedis(config.C.Redis.Pool)

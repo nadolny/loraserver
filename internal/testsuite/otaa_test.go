@@ -65,10 +65,11 @@ func TestOTAAScenarios(t *testing.T) {
 
 		dp := storage.DeviceProfile{
 			DeviceProfile: backend.DeviceProfile{
-				MACVersion:  "1.0.2",
-				RXDelay1:    3,
-				RXDROffset1: 1,
-				RXDataRate2: 5,
+				MACVersion:   "1.0.2",
+				RXDelay1:     3,
+				RXDROffset1:  1,
+				RXDataRate2:  5,
+				SupportsJoin: true,
 			},
 		}
 		So(storage.CreateDeviceProfile(config.C.PostgreSQL.DB, &dp), ShouldBeNil)
@@ -490,7 +491,11 @@ func runOTAATests(asClient *test.ApplicationClient, jsClient *test.JoinServerCli
 				PHYPayload: t.PHYPayload,
 			})
 			if err != nil {
-				So(err.Error(), ShouldEqual, t.ExpectedError.Error())
+				if t.ExpectedError == nil {
+					So(err.Error(), ShouldEqual, "")
+				} else {
+					So(err.Error(), ShouldEqual, t.ExpectedError.Error())
+				}
 				return
 			}
 			So(t.ExpectedError, ShouldBeNil)
@@ -545,6 +550,7 @@ func runOTAATests(asClient *test.ApplicationClient, jsClient *test.JoinServerCli
 				So(da.SNwkSIntKey, ShouldEqual, t.ExpectedDeviceSession.SNwkSIntKey)
 				So(da.FNwkSIntKey, ShouldEqual, t.ExpectedDeviceSession.FNwkSIntKey)
 				So(da.NwkSEncKey, ShouldEqual, t.ExpectedDeviceSession.NwkSEncKey)
+				So(da.JoinReqType, ShouldEqual, lorawan.JoinRequestType)
 			})
 		})
 	}

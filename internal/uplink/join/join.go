@@ -108,7 +108,7 @@ func getDeviceAndDeviceProfile(ctx *context) error {
 	}
 
 	if !ctx.DeviceProfile.SupportsJoin {
-		return errors.Wrap(err, "device does not support join")
+		return errors.New("device does not support join")
 	}
 
 	return nil
