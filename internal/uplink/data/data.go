@@ -323,16 +323,16 @@ func sendFRMPayloadToApplicationServer(ctx *dataContext) error {
 		DeviceStatusMargin:  256,
 	}
 
-	if ctx.ServiceProfile.ServiceProfile.DevStatusReqFreq != 0 && ctx.DeviceSession.LastDevStatusMargin != 127 {
-		if ctx.ServiceProfile.ServiceProfile.ReportDevStatusBattery {
+	if ctx.ServiceProfile.DevStatusReqFreq != 0 && ctx.DeviceSession.LastDevStatusMargin != 127 {
+		if ctx.ServiceProfile.ReportDevStatusBattery {
 			publishDataUpReq.DeviceStatusBattery = uint32(ctx.DeviceSession.LastDevStatusBattery)
 		}
-		if ctx.ServiceProfile.ServiceProfile.ReportDevStatusMargin {
+		if ctx.ServiceProfile.ReportDevStatusMargin {
 			publishDataUpReq.DeviceStatusMargin = int32(ctx.DeviceSession.LastDevStatusMargin)
 		}
 	}
 
-	if ctx.ServiceProfile.ServiceProfile.AddGWMetadata {
+	if ctx.ServiceProfile.AddGWMetadata {
 		var macs []lorawan.EUI64
 		for i := range ctx.RXPacket.RXInfoSet {
 			macs = append(macs, ctx.RXPacket.RXInfoSet[i].MAC)

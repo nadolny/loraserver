@@ -283,7 +283,7 @@ func setRejoin0PendingDeviceSession(ctx *context) error {
 		EnabledUplinkChannels: config.C.NetworkServer.Band.Band.GetStandardUplinkChannelIndices(),
 		ExtraUplinkChannels:   make(map[int]band.Channel),
 		UplinkGatewayHistory:  map[lorawan.EUI64]storage.UplinkGatewayHistory{},
-		MaxSupportedDR:        ctx.ServiceProfile.ServiceProfile.DRMax,
+		MaxSupportedDR:        ctx.ServiceProfile.DRMax,
 		SkipFCntValidation:    ctx.Device.SkipFCntCheck,
 
 		// set to invalid value to indicate we haven't received a status yet
